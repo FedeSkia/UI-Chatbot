@@ -1,14 +1,14 @@
 #!/bin/bash
 
-AWS_REGION="eu-west-1"  # Cambia con la tua region
-AWS_ACCOUNT_ID="507881105499"  # Il tuo AWS Account ID
-IMAGE_NAME="rag-langchain-app-fe"
-ECR_REPOSITORY="rag-app"  # Usa il repository esistente
-SERVICE_TAG="rag-langchain-app-latest-fe"  # Tag specifico per questo servizio
+AWS_REGION="${AWS_REGION:-eu-west-1}"
+AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-507881105499}"
+IMAGE_NAME="${IMAGE_NAME:-rag-langchain-app-fe}"
+ECR_REPOSITORY="${ECR_REPOSITORY:-rag-app}"
+SERVICE_TAG="${SERVICE_TAG:-rag-langchain-app-latest-fe}"
 
-# 1. Build image Docker
+# 1. Build image Docker (--platform linux/amd64 for Fargate)
 echo -e "📦 Building Docker image..."
-docker build -f ./docker/Dockerfile --progress=plain -t $IMAGE_NAME .
+docker build -f ./docker/Dockerfile --platform linux/amd64 --progress=plain -t $IMAGE_NAME .
 
 # 2. Login ad ECR
 echo -e "🔐 Logging into ECR..."
