@@ -36,12 +36,17 @@ FROM nginx:alpine
 
 # Copia i file buildati dal stage precedente
 COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Healthcheck endpoint
+RUN echo '#!/bin/sh\ncurl -f http://localhost:80/ || exit 1' > /healthcheck.sh && \
+    chmod +x /healthcheck.sh
 
-# Copia la configurazione personalizzata di Nginx (opzionale)
-# COPY nginx.conf /etc/nginx/nginx.conf
 
 # Esponi la porta 80
 EXPOSE 80
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD /healthcheck.sh
 
 # Comando di avvio (Nginx si avvia automaticamente)
 CMD ["nginx", "-g", "daemon off;"]
