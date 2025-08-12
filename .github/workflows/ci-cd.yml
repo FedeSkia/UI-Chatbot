@@ -25,6 +25,9 @@ jobs:
   build-push-and-deploy:
     runs-on: ubuntu-latest
     environment: dev
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
