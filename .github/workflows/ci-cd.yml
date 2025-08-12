@@ -39,7 +39,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.GITHUB_ROLE_ARN }}   # store the IAM role ARN in repo secrets
+          role-to-assume: ${{ secrets.ROLE_ARN }}   # store the IAM role ARN in repo secrets
           aws-region: ${{ env.AWS_REGION }}
 
       # Run your script (uses env above)
