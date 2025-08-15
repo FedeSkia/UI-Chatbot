@@ -8,7 +8,7 @@ SERVICE_TAG="${SERVICE_TAG:-rag-langchain-app-latest-fe}"
 
 # 1. Build image Docker (--platform linux/amd64 for Fargate)
 echo -e "📦 Building Docker image..."
-docker build -f ./docker/Dockerfile --platform linux/amd64 --progress=plain -t $IMAGE_NAME .
+docker build -f ./docker/Dockerfile --no-cache --platform linux/amd64 --progress=plain -t $IMAGE_NAME .
 
 # 2. Login ad ECR
 echo -e "🔐 Logging into ECR..."
