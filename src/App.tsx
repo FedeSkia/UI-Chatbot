@@ -1,4 +1,5 @@
 import { useState } from "react";
+const API_URL = import.meta.env.VITE_API_URL as string;
 
 function App() {
   const [input, setInput] = useState("hello");
@@ -8,8 +9,7 @@ function App() {
   const handleSend = async () => {
     setOutput("");
     setLoading(true);
-
-    const response = await fetch("http://localhost:8000/invoke", {
+    const response = await fetch(API_URL + "/invoke", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
