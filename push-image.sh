@@ -5,7 +5,8 @@ AWS_ACCOUNT_ID="${AWS_ACCOUNT_ID:-507881105499}"
 IMAGE_NAME="${IMAGE_NAME:-rag-langchain-app-fe}"
 ECR_REPOSITORY="${ECR_REPOSITORY:-rag-app}"
 SERVICE_TAG="${SERVICE_TAG:-rag-langchain-app-latest-fe}"
-
+ECS_CLUSTER="${ECS_CLUSTER:-my-rag-app-cluster}"
+ECS_SERVICE="${ECS_SERVICE:-nginx-load-balancer}"
 # 1. Build image Docker (--platform linux/amd64 for Fargate)
 echo -e "📦 Building Docker image..."
 docker build -f ./docker/Dockerfile --no-cache --platform linux/amd64 --progress=plain -t $IMAGE_NAME .
@@ -22,3 +23,9 @@ docker tag $IMAGE_NAME:latest $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/
 
 echo -e "⬆️ Pushing image to ECR..."
 docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$SERVICE_TAG
+
+echo -e "⬆️ Deploying..."
+aws ecs update-service \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
+            --force-new-deployment
