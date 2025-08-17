@@ -11,6 +11,7 @@ COPY vite* .
 COPY src ./src
 COPY public/ ./public/
 COPY index.html ./
+COPY .env.production ./
 
 # Debug: verifica struttura directory
 RUN echo "=== Directory structure ===" && \
