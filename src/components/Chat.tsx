@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {getToken} from "../lib/auth.ts";
+import {Navigate} from "react-router-dom";
+import {refreshToken} from "../lib/refreshToken.ts";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -20,6 +23,20 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
 
     const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
 
+    async function sendMsg(text: string) {
+        const response = await fetch(`${apiUrl}/api/chat/invoke`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${getToken()}`,
+                "accept": "application/json",
+                "X-Thread-Id": "5645546"
+            },
+            body: JSON.stringify({content: text}),
+        });
+        return response;
+    }
+
     const handleSend = async () => {
         const text = input.trim();
         if (!text) return;
@@ -35,15 +52,16 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
 
         setLoading(true);
         try {
-            const response = await fetch(`${apiUrl}/api/chat/invoke`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json",
-                "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhMDQ1NjFhMi04ODE0LTQ3ODctYmJmYi1mOTgyY2U2YzkyY2IiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzU3MzU4OTM0LCJpYXQiOjE3NTczNTUzMzQsImVtYWlsIjoiZmVkZS5jb25vY2kud29ya0BnbWFpbC5jb20iLCJwaG9uZSI6IiIsImFwcF9tZXRhZGF0YSI6eyJwcm92aWRlciI6ImVtYWlsIiwicHJvdmlkZXJzIjpbImVtYWlsIl19LCJ1c2VyX21ldGFkYXRhIjp7ImVtYWlsIjoiZmVkZS5jb25vY2kud29ya0BnbWFpbC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJhMDQ1NjFhMi04ODE0LTQ3ODctYmJmYi1mOTgyY2U2YzkyY2IifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJwYXNzd29yZCIsInRpbWVzdGFtcCI6MTc1NzM1NTMzNH1dLCJzZXNzaW9uX2lkIjoiMDYwYTM1MTEtMjRiNS00NzBjLWJmM2ItZGI4N2I0Njk2ZWViIiwiaXNfYW5vbnltb3VzIjpmYWxzZX0.ansZVTPMBeuWY3ZbSsPpUs4SugoLpdksw6pJVudU_IQ",
-                "accept": "application/json",
-                "X-Thread-Id": "5645546"},
-                body: JSON.stringify({ content: text }),
-            });
+            let response = await sendMsg(text);
 
+            if(response.status !== 200) {
+                const refreshResult = await refreshToken();
+                if (refreshResult.ok) {
+                    response = await sendMsg(text);
+                } else {
+                    return <Navigate to="/login" replace state={{ from: location }} />;
+                }
+            }
             if (!response.body) {
                 throw new Error("No response body");
             }
@@ -157,10 +175,10 @@ function Bubble({ role, content }: { role: "user" | "assistant"; content: string
                         "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
                         isUser
                             ? "bg-blue-600 text-white rounded-br-sm"
-                            : "bg-gray-100 text-gray-900 dark:bg-white/10 dark:text-white rounded-bl-sm",
+                            : "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap bg-blue-600 text-white rounded-br-sm",
                     ].join(" ")}
                 >
-                    {content || <span className="opacity-60">…</span>}
+                    {content || <span className="opacity-0">…</span>}
                 </div>
                 {isUser && <div className="shrink-0 mt-1 size-6 rounded-full bg-gray-300/80 dark:bg-white/20" />}
             </div>
