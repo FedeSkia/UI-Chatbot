@@ -1,13 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import {getToken} from "../lib/auth.ts";
-import {Navigate} from "react-router-dom";
-import {refreshToken} from "../lib/refreshToken.ts";
+import {useEffect, useMemo, useRef, useState} from "react";
+import {getToken, setRefreshToken, setToken} from "../lib/auth";
+import {useLocation, useNavigate} from "react-router-dom";
+import {refreshToken} from "../lib/refreshToken";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-export default function Chat({ apiUrl }: { apiUrl: string }) {
+export default function Chat({apiUrl}: { apiUrl: string }) {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    // 1) Guard page on render (sync)
+    useEffect(() => {
+        if (!getToken()) {
+            navigate("/login", {replace: true, state: {from: location}});
+        }
+    }, [location, navigate]);
+
     const [messages, setMessages] = useState<Msg[]>([
-        { id: "w1", role: "assistant", content: "Ciao! Scrivimi qualcosa e risponderò in streaming." }
+        {id: "w1", role: "assistant", content: "Ciao! Scrivimi qualcosa e risponderò in streaming."}
     ]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
@@ -24,7 +34,7 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
     const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
 
     async function sendMsg(text: string) {
-        const response = await fetch(`${apiUrl}/api/chat/invoke`, {
+        return await fetch(`${apiUrl}/api/chat/invoke`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -34,19 +44,19 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
             },
             body: JSON.stringify({content: text}),
         });
-        return response;
     }
 
     const handleSend = async () => {
         const text = input.trim();
         if (!text) return;
 
-        // Push user message
-        const userMsg: Msg = { id: crypto.randomUUID(), role: "user", content: text };
-        setMessages((m) => [...m, userMsg]);
-        setInput("");
+        // If somehow token disappeared since mount, redirect
+        if (!getToken()) {
+            navigate("/login", {replace: true, state: {from: location}});
+            return;
+        }
 
-        // Prepare assistant placeholder
+        // push user + placeholder
         const asstId = crypto.randomUUID();
         setMessages((m) => [...m, { id: asstId, role: "assistant", content: "" }]);
 
@@ -59,21 +69,26 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
                 if (refreshResult.ok) {
                     response = await sendMsg(text);
                 } else {
-                    return <Navigate to="/login" replace state={{ from: location }} />;
+                    setRefreshToken("");
+                    setToken("")
+                    navigate("/login", {replace: true, state: {from: location}});
+                    return;
                 }
             }
-            if (!response.body) {
-                throw new Error("No response body");
+
+            if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
             }
+            if (!response.body) throw new Error("No response body");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
             while (true) {
-                const { value, done } = await reader.read();
+                const {value, done} = await reader.read();
                 if (done) break;
-                const chunk = decoder.decode(value, { stream: true });
+                const chunk = decoder.decode(value, {stream: true});
                 setMessages((m) =>
-                    m.map((msg) => (msg.id === asstId ? { ...msg, content: msg.content + chunk } : msg))
+                    m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
                 );
             }
         } catch (e) {
@@ -89,7 +104,6 @@ export default function Chat({ apiUrl }: { apiUrl: string }) {
                         : msg
                 )
             );
-            // optional: console.error(e);
         } finally {
             setLoading(false);
             scrollToBottom();
