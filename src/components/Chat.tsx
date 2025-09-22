@@ -184,9 +184,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-md bg-blue-600"/>
+                    <div className="size-8 rounded-md bg-green-600"/>
                     <div>
-                        <div className="text-sm font-semibold">Assistant</div>
+                        <div className="text-sm font-semibold">Chat AI</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">Online</div>
                     </div>
                 </div>
