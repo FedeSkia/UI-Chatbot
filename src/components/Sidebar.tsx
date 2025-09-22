@@ -27,10 +27,12 @@ export default function Sidebar({
     return (
         <aside className="w-[280px] shrink-0">
             <div
-                className="h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm flex flex-col">
+                className="h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col"
+            >
                 {/* Header */}
                 <div
-                    className="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
+                    className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50"
+                >
                     <div className="text-sm font-semibold">Threads</div>
                     <button
                         onClick={onNew}
@@ -41,45 +43,40 @@ export default function Sidebar({
                 </div>
 
                 {/* List */}
-                <div className="p-2 overflow-y-auto">
+                <div className="p-2 overflow-y-auto divide-y divide-gray-200">
                     {userConversationThreadsOrderedByDate.length === 0 ? (
-                        <div className="text-xs text-gray-500 dark:text-gray-400 px-2 py-3">
+                        <div className="text-xs text-gray-500 px-2 py-3">
                             No threads yet. Create one →
                         </div>
                     ) : (
-                        <ul className="space-y-1">
+                        <ul className="space-y-2">
                             {userConversationThreadsOrderedByDate.map((thread) => {
-
                                 const active = thread.thread_id === activeThreadId;
                                 return (
                                     <li key={thread.thread_id}>
                                         <button
                                             onClick={() => onSelect(thread.thread_id)}
                                             className={[
-                                                "w-full group flex items-start gap-2 px-3 py-2 rounded-lg text-left",
-                                                "border border-transparent",
+                                                "w-full group flex items-start gap-2 px-3 py-2 rounded-lg text-left border",
                                                 active
-                                                    ? "bg-blue-600/10 dark:bg-blue-600/20 border-blue-600/30"
-                                                    : "hover:bg-gray-50 dark:hover:bg-white/10",
+                                                    ? "bg-blue-50 border-blue-600"
+                                                    : "border-gray-200 hover:bg-gray-50",
                                             ].join(" ")}
                                         >
                                             <div
                                                 className={[
                                                     "mt-1 size-2.5 rounded-full",
-                                                    active ? "bg-blue-600" : "bg-gray-300 dark:bg-white/30",
+                                                    active ? "bg-blue-600" : "bg-gray-400",
                                                 ].join(" ")}
                                             />
                                             <div className="min-w-0 flex-1">
                                                 <div
-                                                    className={[
-                                                        "truncate text-sm",
-                                                        active ? "text-blue-700 dark:text-blue-200 font-semibold" : "text-gray-900 dark:text-white",
-                                                    ].join(" ")}
-                                                    title={"Title"}
+                                                    className="truncate text-sm text-black font-semibold"
+                                                    title="Title"
                                                 >
-                                                    {"Untitled"}
+                                                    Untitled
                                                 </div>
-                                                <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                                                <div className="text-[11px] text-gray-500">
                                                     {new Date(thread.updated_at).toLocaleString()}
                                                 </div>
                                             </div>
