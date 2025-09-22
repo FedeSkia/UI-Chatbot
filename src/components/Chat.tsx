@@ -10,11 +10,12 @@ import {
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
+export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads, setIsChatBotResponding}: {
     apiUrl: string,
     threadId: string | null,
     updateThreadId: (id: string) => void,
-    setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void
+    setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void,
+    setIsChatBotResponding: any
 }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -53,12 +54,14 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         };
 
     }, [threadId, navigate, location]);
+
     useEffect(() => {
         if (!threadId) {
             setMessages([]);
             setInput("");
         }
     }, [threadId]);
+
     const [messages, setMessages] = useState<Msg[]>([]);
 
     const [input, setInput] = useState("");
@@ -131,6 +134,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
+            setIsChatBotResponding(true);
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
@@ -139,6 +143,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
                 );
             }
+            setIsChatBotResponding(false);
             if(!threadId) {
                 const threadIdFromBackEnd = response.headers.get("X-Thread-Id");
                 if(threadIdFromBackEnd !== null) {

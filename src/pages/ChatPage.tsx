@@ -11,6 +11,8 @@ export default function ChatPage() {
     const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
     const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
     const navigate = useNavigate();
+    const [isChatBotResponding, setIsChatBotResponding] = useState(false);
+
     useEffect(() => {
         (async () => {
             const res = await getUserThreads();
@@ -41,6 +43,7 @@ export default function ChatPage() {
                     activeThreadId={activeThreadId}
                     onSelect={handleSelect}
                     onNew={handleNew}
+                    isChatBotResponding={isChatBotResponding}
                 />
 
                 <main className="min-w-0 flex-1">
@@ -49,6 +52,7 @@ export default function ChatPage() {
                         threadId={activeThreadId}
                         updateThreadId={handleSelect}
                         setConversationThreads={setConversationThreads}
+                        setIsChatBotResponding={setIsChatBotResponding}
                     />
                 </main>
             </div>

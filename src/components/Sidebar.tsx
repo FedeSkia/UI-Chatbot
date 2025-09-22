@@ -6,11 +6,13 @@ export default function Sidebar({
                                     conversationThreads,
                                     onSelect,
                                     onNew,
+                                    isChatBotResponding
                                 }: {
     activeThreadId: string | null;
     conversationThreads: UserConversationThreadsResponse | null;
     onSelect: (id: string) => void;
     onNew: () => void;
+    isChatBotResponding: boolean;
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(true);
 
@@ -56,6 +58,8 @@ export default function Sidebar({
                         <div className="text-sm font-semibold">Conversations</div>
                     </div>
                     <button
+                        aria-busy={isChatBotResponding}
+                        disabled={isChatBotResponding}
                         onClick={onNew}
                         className="inline-flex items-center gap-2 rounded-md bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 active:bg-blue-800 transition"
                     >
@@ -71,7 +75,7 @@ export default function Sidebar({
                 >
                     {userConversationThreadsOrderedByDate.length === 0 ? (
                         <div className="text-xs text-gray-500 px-2 py-3">
-                            No threads yet. Create one →
+                            No conversation yet. Create one
                         </div>
                     ) : (
                         <ul className="space-y-2">
