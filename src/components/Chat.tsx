@@ -2,29 +2,71 @@ import {useEffect, useMemo, useRef, useState} from "react";
 import {getToken, setRefreshToken, setToken} from "../lib/auth";
 import {useLocation, useNavigate} from "react-router-dom";
 import {refreshToken} from "../lib/refreshToken";
+import {
+    getConversationData,
+    getUserThreads,
+    type UserConversationThreadsResponse
+} from "../lib/conversationMessagesResponse";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-export default function Chat({apiUrl}: { apiUrl: string }) {
+export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
+    apiUrl: string,
+    threadId: string | null,
+    updateThreadId: (id: string) => void,
+    setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void
+}) {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // 1) Guard page on render (sync)
     useEffect(() => {
         if (!getToken()) {
             navigate("/login", {replace: true, state: {from: location}});
         }
     }, [location, navigate]);
 
-    const [messages, setMessages] = useState<Msg[]>([
-        {id: "w1", role: "assistant", content: "Ciao! Scrivimi qualcosa e risponderò in streaming."}
-    ]);
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            if (!threadId) return;
+            const res = await getConversationData(threadId);
+            if (cancelled) return;
+            if (!res.ok) {
+                if (res.error === "Unauthenticated") {
+                    navigate("/login", {replace: true, state: {from: location}});
+                    return;
+                }
+                // otherwise keep empty / show a system bubble
+                setMessages([{id: crypto.randomUUID(), role: "assistant", content: "Nessuna conversazione trovata."}]);
+                return;
+            }
+            const mapped: Msg[] = res.messages.map((m) => ({
+                id: crypto.randomUUID(),
+                role: m.type === "human" ? "user" : "assistant",
+                content: m.content ?? ""
+            }));
+            setMessages(mapped);
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+
+    }, [threadId, navigate, location]);
+    useEffect(() => {
+        if (!threadId) {
+            setMessages([]);
+            setInput("");
+        }
+    }, [threadId]);
+    const [messages, setMessages] = useState<Msg[]>([]);
+
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
     const viewportRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        viewportRef.current?.scrollTo({ top: viewportRef.current.scrollHeight, behavior: "smooth" });
+        viewportRef.current?.scrollTo({top: viewportRef.current.scrollHeight, behavior: "smooth"});
     };
 
     useEffect(() => {
@@ -34,14 +76,15 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
     const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
 
     async function sendMsg(text: string) {
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            accept: "application/json",
+            Authorization: `Bearer ${getToken() || ""}`,
+            ...(threadId ? { "X-Thread-Id": threadId } : {}), // only if present
+        };
         return await fetch(`${apiUrl}/api/chat/invoke`, {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${getToken()}`,
-                "accept": "application/json",
-                "X-Thread-Id": "5645546"
-            },
+            headers,
             body: JSON.stringify({content: text}),
         });
     }
@@ -57,14 +100,19 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
         }
 
         // push user + placeholder
+        const userId = crypto.randomUUID();
         const asstId = crypto.randomUUID();
-        setMessages((m) => [...m, { id: asstId, role: "assistant", content: "" }]);
+        setMessages((m) => [
+            ...m,
+            {id: userId, role: "user", content: text},
+            {id: asstId, role: "assistant", content: ""}
+        ]);
 
         setLoading(true);
         try {
             let response = await sendMsg(text);
 
-            if(response.status !== 200) {
+            if (response.status !== 200) {
                 const refreshResult = await refreshToken();
                 if (refreshResult.ok) {
                     response = await sendMsg(text);
@@ -91,6 +139,19 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
                     m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
                 );
             }
+            if(!threadId) {
+                const threadIdFromBackEnd = response.headers.get("X-Thread-Id");
+                if(threadIdFromBackEnd !== null) {
+                    updateThreadId(threadId);
+                }
+                const res = await getUserThreads();
+                if (!res.ok && res.error === "Unauthenticated") {
+                    navigate("/login", {replace: true});
+                    return;
+                }
+                setConversationThreads(res);
+            }
+
         } catch (e) {
             setMessages((m) =>
                 m.map((msg) =>
@@ -118,11 +179,22 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
     };
 
     return (
-        <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
+        <div
+            className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 py-3">
                 <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-md bg-blue-600" />
+                    <div className="size-8 rounded-md bg-blue-600"/>
+                    <div>
+                        <div className="text-sm font-semibold">Assistant</div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Thread: {threadId?.slice(0, 8)}</div>
+                    </div>
+                </div>
+                <span className="text-xs text-gray-500 dark:text-gray-400">{messages.length} messaggi</span>
+            </div>
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 py-3">
+                <div className="flex items-center gap-3">
+                    <div className="size-8 rounded-md bg-blue-600"/>
                     <div>
                         <div className="text-sm font-semibold">Assistant</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">Online</div>
@@ -134,7 +206,7 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
             {/* Messages */}
             <div ref={viewportRef} className="h-[480px] overflow-y-auto px-4 py-4 space-y-4">
                 {messages.map((m) => (
-                    <Bubble key={m.id} role={m.role} content={m.content} />
+                    <Bubble key={m.id} role={m.role} content={m.content}/>
                 ))}
 
                 {loading && (
@@ -150,7 +222,8 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
 
             {/* Composer */}
             <div className="border-t border-gray-200 dark:border-white/10 p-3">
-                <div className="flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/10 bg-white/80 dark:bg-white/5 px-2 py-2">
+                <div
+                    className="flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/10 bg-white/80 dark:bg-white/5 px-2 py-2">
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -163,9 +236,10 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
                         disabled={!canSend}
                         className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeWidth="2" d="M22 2L11 13" />
-                            <path strokeWidth="2" d="M22 2L15 22L11 13L2 9L22 2Z" />
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor">
+                            <path strokeWidth="2" d="M22 2L11 13"/>
+                            <path strokeWidth="2" d="M22 2L15 22L11 13L2 9L22 2Z"/>
                         </svg>
                         Invia
                     </button>
@@ -176,13 +250,13 @@ export default function Chat({apiUrl}: { apiUrl: string }) {
     );
 }
 
-function Bubble({ role, content }: { role: "user" | "assistant"; content: string }) {
+function Bubble({role, content}: { role: "user" | "assistant"; content: string }) {
     const isUser = role === "user";
     return (
         <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
             <div className={`flex items-start gap-3 max-w-[80%]`}>
                 {!isUser && (
-                    <div className="shrink-0 mt-1 size-6 rounded-full bg-blue-600/90" />
+                    <div className="shrink-0 mt-1 size-6 rounded-full bg-blue-600/90"/>
                 )}
                 <div
                     className={[
@@ -194,7 +268,7 @@ function Bubble({ role, content }: { role: "user" | "assistant"; content: string
                 >
                     {content || <span className="opacity-0">…</span>}
                 </div>
-                {isUser && <div className="shrink-0 mt-1 size-6 rounded-full bg-gray-300/80 dark:bg-white/20" />}
+                {isUser && <div className="shrink-0 mt-1 size-6 rounded-full bg-gray-300/80 dark:bg-white/20"/>}
             </div>
         </div>
     );
