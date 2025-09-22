@@ -180,19 +180,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
     return (
         <div
-            className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 shadow-sm">
+            className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 py-3">
-                <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-md bg-blue-600"/>
-                    <div>
-                        <div className="text-sm font-semibold">Assistant</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Thread: {threadId?.slice(0, 8)}</div>
-                    </div>
-                </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{messages.length} messaggi</span>
-            </div>
-            <div className="flex items-center justify-between border-b border-gray-200 dark:border-white/10 px-4 py-3">
+            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
                     <div className="size-8 rounded-md bg-blue-600"/>
                     <div>
@@ -200,7 +190,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                         <div className="text-xs text-gray-500 dark:text-gray-400">Online</div>
                     </div>
                 </div>
-                <span className="text-xs text-gray-500 dark:text-gray-400">{messages.length} messaggi</span>
+                <span className="text-xs text-gray-500">{messages.length} messaggi</span>
             </div>
 
             {/* Messages */}
@@ -210,7 +200,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                 ))}
 
                 {loading && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="relative flex size-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
               <span className="relative inline-flex rounded-full size-2"></span>
@@ -221,9 +211,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Composer */}
-            <div className="border-t border-gray-200 dark:border-white/10 p-3">
+            <div className="border-t border-gray-200 p-3">
                 <div
-                    className="flex items-center gap-2 rounded-xl border border-gray-300 dark:border-white/10 bg-white/80 dark:bg-white/5 px-2 py-2">
+                    className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white/80 px-2 py-2">
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -244,7 +234,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                         Invia
                     </button>
                 </div>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">Invia con Invio</p>
+                <p className="mt-2 text-xs text-gray-500">Invia con Invio</p>
             </div>
         </div>
     );
@@ -268,7 +258,7 @@ function Bubble({role, content}: { role: "user" | "assistant"; content: string }
                 >
                     {content || <span className="opacity-0">…</span>}
                 </div>
-                {isUser && <div className="shrink-0 mt-1 size-6 rounded-full bg-gray-300/80 dark:bg-white/20"/>}
+                {isUser && <div className="shrink-0 mt-1 size-6 rounded-full bg-gray-300/80"/>}
             </div>
         </div>
     );
