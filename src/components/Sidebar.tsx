@@ -96,14 +96,8 @@ export default function Sidebar({
                                                 ].join(" ")}
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <div
-                                                    className="truncate text-sm text-black font-semibold"
-                                                    title="Title"
-                                                >
-                                                    Untitled
-                                                </div>
-                                                <div className="text-[11px] text-gray-500">
-                                                    {new Date(thread.updated_at).toLocaleString()}
+                                                <div className="text-[11px] text-black">
+                                                    Conversation started on {new Date(thread.updated_at).toLocaleString()}
                                                 </div>
                                             </div>
                                         </button>
