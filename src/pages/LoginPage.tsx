@@ -27,11 +27,11 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-[#0b0d10]">
-            <div className="w-full max-w-md rounded-2xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 p-6 shadow-sm">
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="w-full max-w-md rounded-2xl border-4 border-gray-400 bg-white p-6 shadow-lg">
                 <h1 className="text-2xl font-bold">Sign in</h1>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
-                    Accedi con email e password.
+                <p className="mt-2 text-sm text-black">
+                    Login using email and password.
                 </p>
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -42,7 +42,7 @@ export default function LoginPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             autoComplete="email"
-                            className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-transparent px-3 py-2 text-sm focus:outline-none"
+                            className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none"
                             placeholder="you@example.com"
                             required
                         />
@@ -55,7 +55,7 @@ export default function LoginPage() {
                             value={pwd}
                             onChange={(e) => setPwd(e.target.value)}
                             autoComplete="current-password"
-                            className="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-transparent px-3 py-2 text-sm focus:outline-none"
+                            className="w-full rounded-lg border border-gray-300 bg-transparent px-3 py-2 text-sm focus:outline-none"
                             placeholder="••••••••"
                             required
                         />
@@ -68,13 +68,9 @@ export default function LoginPage() {
                         disabled={loading}
                         className="w-full rounded-lg bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 transition"
                     >
-                        {loading ? "Accesso in corso…" : "Accedi"}
+                        {loading ? "Logging in…" : "Log in"}
                     </button>
                 </form>
-
-                <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                    Provider: {import.meta.env.VITE_AUTH_PROVIDER || "custom"}
-                </p>
             </div>
         </div>
     );

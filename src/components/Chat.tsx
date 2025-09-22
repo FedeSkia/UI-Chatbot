@@ -190,7 +190,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                         <div className="text-xs text-gray-500 dark:text-gray-400">Online</div>
                     </div>
                 </div>
-                <span className="text-xs text-gray-500">{messages.length} messaggi</span>
+                <span className="text-xs text-gray-500">{messages.length} messages count</span>
             </div>
 
             {/* Messages */}
@@ -218,7 +218,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={onKeyDown}
-                        placeholder="Scrivi un messaggio…"
+                        placeholder="Ask what you want…"
                         className="flex-1 bg-transparent px-2 py-2 text-sm focus:outline-none"
                     />
                     <button
@@ -234,7 +234,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                         Invia
                     </button>
                 </div>
-                <p className="mt-2 text-xs text-gray-500">Invia con Invio</p>
+                <p className="mt-2 text-xs text-gray-500">Press send</p>
             </div>
         </div>
     );
