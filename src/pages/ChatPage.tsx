@@ -7,6 +7,7 @@ import {
     type UserConversationThreadsResponse
 } from "../lib/conversationMessagesResponse.ts";
 import Sidebar from "../components/Sidebar.tsx";
+import TopBar from "../components/TopBar.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -70,6 +71,7 @@ export default function ChatPage() {
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-4">
+            <TopBar/>
             <div className="flex gap-4">
                 <Sidebar
                     conversationThreads={conversationThreads}
