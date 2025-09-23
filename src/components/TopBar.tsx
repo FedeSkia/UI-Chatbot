@@ -1,5 +1,6 @@
 import {useNavigate} from "react-router-dom";
 import {clearToken, decodeEmailFromJwt, getRefreshToken, setRefreshToken} from "../lib/auth";
+import UploadButton from "./UploadButton.tsx";
 
 export default function TopBar({setIsSidebarOpen, isSideBarOpen}: {
     setIsSidebarOpen?: (value: ((prevState: boolean) => boolean)) => void
@@ -43,6 +44,7 @@ export default function TopBar({setIsSidebarOpen, isSideBarOpen}: {
                 >
                     Logout
                 </button>
+                <UploadButton/>
             </div>
         </header>
     );
