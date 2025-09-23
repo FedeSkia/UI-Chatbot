@@ -3,6 +3,7 @@ import {useNavigate} from "react-router-dom";
 import TopBar from "../components/TopBar";
 import {deleteUserDocument, type DocumentsResult, getUserDocuments, type UserDocument} from "../lib/documents";
 import DeleteDocumentModal from "../components/DeleteDocumentModal.tsx";
+import UploadButton from "../components/UploadButton.tsx";
 
 export default function DocumentsPage() {
     const [docs, setDocs] = useState<UserDocument[]>([]);
@@ -53,36 +54,38 @@ export default function DocumentsPage() {
         setModalMsg(undefined);
     }
 
-    function retrieveDocuments() {
-        return () => {
-            (async () => {
-                setError(null);
-                const res: DocumentsResult = await getUserDocuments();
-                if (res.ok) {
-                    setLoading(false);
-                    setDocs(res.data);
-                }
+    async function retrieveDocuments() {
+        setLoading(true);
+        setError(null);
 
-                if (!res.ok && res.status === 404) {
-                    setLoading(false);
-                    setDocs([])
-                    setError("No documents found");
-                    return;
-                }
+        const res: DocumentsResult = await getUserDocuments();
 
-                if (!res.ok && (res.status === 401 || res.status === 403)) {
-                    // if token invalid/expired, go to login
-                    navigate("/login", {replace: true});
-                    return;
-                }
-                setLoading(false);
-                setError("No documents found");
-                setDocs([])
-            })();
-        };
+        if (res.ok) {
+            setDocs(res.data);
+            setLoading(false);
+            return;
+        }
+
+        if (res.status === 404) {
+            setDocs([]);
+            setError("No documents found");
+            setLoading(false);
+            return;
+        }
+
+        if (res.status === 401 || res.status === 403) {
+            navigate("/login", { replace: true });
+            return;
+        }
+
+        setDocs([]);
+        setError(res.error || "No documents found");
+        setLoading(false);
     }
 
-    useEffect(retrieveDocuments(), [navigate]);
+    useEffect(() => {
+        retrieveDocuments();
+    }, [navigate]);
 
     const rows = useMemo(() => docs, [docs]);
 
@@ -95,11 +98,12 @@ export default function DocumentsPage() {
                         <h1 className="text-sm font-semibold">My Documents</h1>
                         {/* optional refresh */}
                         <button
-                            onClick={() => retrieveDocuments()}
+                            onClick={retrieveDocuments}
                             className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50"
                         >
                             Refresh
                         </button>
+                        <UploadButton/>
                     </div>
 
                     {/* states */}
@@ -117,29 +121,31 @@ export default function DocumentsPage() {
 
                     {!loading && !error && rows.length > 0 && (
                         <div className="overflow-x-auto">
-                            <thead className="bg-gray-50">
-                            <tr className="text-left text-gray-600">
-                                <th className="px-4 py-2 font-medium">Name</th>
-                                <th className="px-4 py-2 font-medium">Created</th>
-                                <th className="px-4 py-2 font-medium"></th>
-                            </tr>
-                            </thead>
-                            <tbody>
-                            {rows.map((d) => (
-                                <tr key={d.document_id} className="border-t border-gray-100 hover:bg-gray-50">
-                                    <td className="px-4 py-2 text-gray-900">{d.file_name}</td>
-                                    <td className="px-4 py-2 text-gray-700">{new Date(d.created_at).toLocaleString()}</td>
-                                    <td className="px-4 py-2 text-right">
-                                        <button
-                                            onClick={() => openDeleteConfirm(d.document_id, d.file_name)}
-                                            className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                        >
-                                            Delete
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                            </tbody>
+                            <table className="min-w-full text-sm">
+                                <thead className="bg-gray-50">
+                                    <tr className="text-left text-gray-600">
+                                        <th className="px-4 py-2 font-medium">Name</th>
+                                        <th className="px-4 py-2 font-medium">Created</th>
+                                        <th className="px-4 py-2 font-medium"></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {rows.map((d) => (
+                                        <tr key={d.document_id} className="border-t border-gray-100 hover:bg-gray-50">
+                                            <td className="px-4 py-2 text-gray-900">{d.file_name}</td>
+                                            <td className="px-4 py-2 text-gray-700">{new Date(d.created_at).toLocaleString()}</td>
+                                            <td className="px-4 py-2 text-right">
+                                                <button
+                                                    onClick={() => openDeleteConfirm(d.document_id, d.file_name)}
+                                                    className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                >
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
                         </div>
                     )}
                 </div>
