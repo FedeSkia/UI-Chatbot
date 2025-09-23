@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
-import { getUserDocuments, type UserDocument } from "../lib/documents";
+import {deleteUserDocument, getUserDocuments, type UserDocument} from "../lib/documents";
 
 export default function DocumentsPage() {
     const [docs, setDocs] = useState<UserDocument[]>([]);
@@ -29,6 +29,18 @@ export default function DocumentsPage() {
             setDocs(res.data);
         })();
     }, [navigate]);
+
+    async function handleDelete(id: string) {
+        if (!confirm("Are you sure you want to delete this document?")) return;
+
+        const res = await deleteUserDocument(id);
+        if (!res.ok) {
+            alert(`Delete failed: ${res.error}`);
+            return;
+        }
+        // remove from local state
+        setDocs((prev) => prev.filter((d) => d.document_id !== id));
+    }
 
     const rows = useMemo(() => docs, [docs]);
 
@@ -85,25 +97,31 @@ export default function DocumentsPage() {
 
                     {!loading && !error && rows.length > 0 && (
                         <div className="overflow-x-auto">
-                            <table className="min-w-full text-sm">
-                                <thead className="bg-gray-50">
-                                <tr className="text-left text-gray-600">
-                                    <th className="px-4 py-2 font-medium">Name</th>
-                                    <th className="px-4 py-2 font-medium">Created</th>
-                                    {/* add more columns if needed */}
+                            <thead className="bg-gray-50">
+                            <tr className="text-left text-gray-600">
+                                <th className="px-4 py-2 font-medium">Name</th>
+                                <th className="px-4 py-2 font-medium">Created</th>
+                                <th className="px-4 py-2 font-medium"></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {rows.map((d) => (
+                                <tr key={d.document_id} className="border-t border-gray-100 hover:bg-gray-50">
+                                    <td className="px-4 py-2 text-gray-900">{d.file_name}</td>
+                                    <td className="px-4 py-2 text-gray-700">
+                                        {new Date(d.created_at).toLocaleString()}
+                                    </td>
+                                    <td className="px-4 py-2 text-right">
+                                        <button
+                                            onClick={() => handleDelete(d.document_id)}
+                                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
                                 </tr>
-                                </thead>
-                                <tbody>
-                                {rows.map((d) => (
-                                    <tr key={d.document_id} className="border-t border-gray-100 hover:bg-gray-50">
-                                        <td className="px-4 py-2 text-gray-900">{d.file_name}</td>
-                                        <td className="px-4 py-2 text-gray-700">
-                                            {new Date(d.created_at).toLocaleString()}
-                                        </td>
-                                    </tr>
-                                ))}
-                                </tbody>
-                            </table>
+                            ))}
+                            </tbody>
                         </div>
                     )}
                 </div>

@@ -3,6 +3,7 @@ import {getToken} from "./auth.ts";
 const API_URL = import.meta.env.VITE_API_URL as string;
 const VITE_DOCUMENT_UPLOAD_PATH = import.meta.env.VITE_DOCUMENT_UPLOAD_PATH as string;
 const VITE_DOCUMENT_RETRIEVE_PATH = import.meta.env.VITE_DOCUMENT_RETRIEVE_PATH as string;
+const VITE_DOCUMENT_DELETE_PATH = import.meta.env.VITE_DOCUMENT_DELETE_PATH as string;
 
 export type IngestedApi = { chunks: number, file_name: string }
 export type UploadResultApi = { filename: string, status: string, ingested: IngestedApi }
@@ -20,6 +21,30 @@ export type UserDocument = {
 export type DocumentsResult =
     | { ok: true; data: UserDocument[] }
     | { ok: false; error: string; status?: number };
+
+export async function deleteUserDocument(documentId: string): Promise<DocumentsResult> {
+    try {
+        const pathToDeleteDocument = API_URL + VITE_DOCUMENT_DELETE_PATH + documentId;
+        const res = await fetch(pathToDeleteDocument, {
+            method: "DELETE",
+            headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${getToken() || ""}`,
+            },
+        });
+
+        const json = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+            const msg = (json && (json.msg || json.message || json.error)) || res.statusText || "Failed to delete document";
+            return { ok: false, error: msg, status: res.status };
+        }
+
+        return { ok: true, data: json };
+    } catch (e: any) {
+        return { ok: false, error: e?.message || "Network error" };
+    }
+}
 
 export async function getUserDocuments(): Promise<DocumentsResult> {
     try {
