@@ -2,12 +2,48 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TopBar from "../components/TopBar";
 import {deleteUserDocument, getUserDocuments, type UserDocument} from "../lib/documents";
+import DeleteDocumentModal from "../components/DeleteDocumentModal.tsx";
 
 export default function DocumentsPage() {
     const [docs, setDocs] = useState<UserDocument[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalMode, setModalMode] = useState<"confirm" | "deleting" | "success" | "error">("confirm");
+    const [modalMsg, setModalMsg] = useState<string | undefined>(undefined);
+    const [selected, setSelected] = useState<{ id: string; fileName?: string } | null>(null);
+
+
+    function openDeleteConfirm(id: string, fileName?: string) {
+        setSelected({ id, fileName });
+        setModalMsg(undefined);
+        setModalMode("confirm");
+        setModalOpen(true);
+    }
+
+    async function confirmDelete() {
+        if (!selected) return;
+        setModalMode("deleting");
+        const res = await deleteUserDocument(selected.id);
+        if (!res.ok) {
+            setModalMode("error");
+            setModalMsg(res.error);
+            return;
+        }
+        // success: update table
+        setDocs((prev) => prev.filter((d) => d.document_id !== selected.id));
+        setModalMode("success");
+        setModalMsg(`“${selected.fileName || selected.id}” has been deleted.`);
+    }
+
+    function closeModal() {
+        setModalOpen(false);
+        setSelected(null);
+        setModalMsg(undefined);
+    }
+
 
     useEffect(() => {
         (async () => {
@@ -29,18 +65,6 @@ export default function DocumentsPage() {
             setDocs(res.data);
         })();
     }, [navigate]);
-
-    async function handleDelete(id: string) {
-        if (!confirm("Are you sure you want to delete this document?")) return;
-
-        const res = await deleteUserDocument(id);
-        if (!res.ok) {
-            alert(`Delete failed: ${res.error}`);
-            return;
-        }
-        // remove from local state
-        setDocs((prev) => prev.filter((d) => d.document_id !== id));
-    }
 
     const rows = useMemo(() => docs, [docs]);
 
@@ -108,12 +132,10 @@ export default function DocumentsPage() {
                             {rows.map((d) => (
                                 <tr key={d.document_id} className="border-t border-gray-100 hover:bg-gray-50">
                                     <td className="px-4 py-2 text-gray-900">{d.file_name}</td>
-                                    <td className="px-4 py-2 text-gray-700">
-                                        {new Date(d.created_at).toLocaleString()}
-                                    </td>
+                                    <td className="px-4 py-2 text-gray-700">{new Date(d.created_at).toLocaleString()}</td>
                                     <td className="px-4 py-2 text-right">
                                         <button
-                                            onClick={() => handleDelete(d.document_id)}
+                                            onClick={() => openDeleteConfirm(d.document_id, d.file_name)}
                                             className="text-red-600 hover:text-red-800 text-sm font-medium"
                                         >
                                             Delete
@@ -126,6 +148,14 @@ export default function DocumentsPage() {
                     )}
                 </div>
             </main>
+            <DeleteDocumentModal
+                open={modalOpen}
+                mode={modalMode}
+                fileName={selected?.fileName}
+                message={modalMsg}
+                onConfirm={confirmDelete}
+                onClose={closeModal}
+            />
         </div>
     );
 }
