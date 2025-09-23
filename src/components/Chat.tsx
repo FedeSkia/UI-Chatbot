@@ -92,6 +92,31 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         });
     }
 
+    function updateConversationThreadIdFromApi(response: Response) {
+        // If this is a brand-new conversation, capture the thread id from response headers right away
+        if (!threadId) {
+            const newThreadId = response.headers.get("X-Thread-Id");
+            if (newThreadId) {
+                updateThreadId(newThreadId);
+            }
+        }
+    }
+
+    function handleErrorForInvokingChatBotApi(asstId: `${string}-${string}-${string}-${string}-${string}`) {
+        setMessages((m) =>
+            m.map((msg) =>
+                msg.id === asstId
+                    ? {
+                        ...msg,
+                        content:
+                            (msg.content || "") +
+                            "\n\n⚠️ Errore durante lo streaming della risposta. Controlla la console.",
+                    }
+                    : msg
+            )
+        );
+    }
+
     const handleSend = async () => {
         const text = input.trim();
         if (!text) return;
@@ -113,8 +138,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
         setLoading(true);
         try {
+            setIsChatBotResponding(true);
             let response = await sendMsg(text);
-
+            updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
                 const refreshResult = await refreshToken();
                 if (refreshResult.ok) {
@@ -134,7 +160,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
-            setIsChatBotResponding(true);
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
@@ -143,34 +168,20 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
                 );
             }
-            setIsChatBotResponding(false);
-            if(!threadId) {
-                const threadIdFromBackEnd = response.headers.get("X-Thread-Id");
-                if(threadIdFromBackEnd !== null) {
-                    updateThreadId(threadId);
-                }
+            if (!threadId) {
+                // refresh the sidebar list after the first message created a new thread
                 const res = await getUserThreads();
                 if (!res.ok && res.error === "Unauthenticated") {
-                    navigate("/login", {replace: true});
+                    navigate("/login", { replace: true });
                     return;
                 }
-                setConversationThreads(res);
+                setConversationThreads?.(res);
             }
 
         } catch (e) {
-            setMessages((m) =>
-                m.map((msg) =>
-                    msg.id === asstId
-                        ? {
-                            ...msg,
-                            content:
-                                (msg.content || "") +
-                                "\n\n⚠️ Errore durante lo streaming della risposta. Controlla la console.",
-                        }
-                        : msg
-                )
-            );
+            handleErrorForInvokingChatBotApi(asstId);
         } finally {
+            setIsChatBotResponding(false);
             setLoading(false);
             scrollToBottom();
         }
@@ -210,7 +221,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
               <span className="relative inline-flex rounded-full size-2"></span>
             </span>
-                        Generando risposta…
+                        Thinking…
                     </div>
                 )}
             </div>
@@ -236,7 +247,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                             <path strokeWidth="2" d="M22 2L11 13"/>
                             <path strokeWidth="2" d="M22 2L15 22L11 13L2 9L22 2Z"/>
                         </svg>
-                        Invia
+                        Send
                     </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Press send</p>

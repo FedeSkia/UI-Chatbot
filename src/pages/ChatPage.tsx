@@ -1,7 +1,11 @@
 import {useEffect, useState} from "react";
 import Chat from "../components/Chat";
 import {useNavigate} from "react-router-dom";
-import {getUserThreads, type UserConversationThreadsResponse} from "../lib/conversationMessagesResponse.ts";
+import {
+    getUserThreads,
+    type UserConversationThread,
+    type UserConversationThreadsResponse
+} from "../lib/conversationMessagesResponse.ts";
 import Sidebar from "../components/Sidebar.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
@@ -27,8 +31,37 @@ export default function ChatPage() {
         })();
     }, [navigate]);
 
+    function addDummyThreadToConversations(tempId: string, now: string, prev: UserConversationThreadsResponse | null) {
+        const newThread: UserConversationThread = {
+            thread_id: tempId,
+            created_at: now,
+            updated_at: now,
+        };
+
+        if (!prev) {
+            return {
+                ok: true,
+                error: "",
+                threads: [newThread],
+            };
+        }
+
+        return {
+            ...prev,
+            threads: [newThread, ...prev.threads],
+        };
+    }
+
     function handleNew() {
         setActiveThreadId(null);
+
+        const now = new Date().toISOString();
+        const tempId = `tmp-${crypto.randomUUID()}`; // placeholder id for UI only
+
+        setConversationThreads(prev => {
+            return addDummyThreadToConversations(tempId, now, prev);
+        });
+        setActiveThreadId(tempId)
     }
 
     function handleSelect(threadId: string) {

@@ -61,7 +61,7 @@ export default function Sidebar({
                         aria-busy={isChatBotResponding}
                         disabled={isChatBotResponding}
                         onClick={onNew}
-                        className="inline-flex items-center gap-2 rounded-md bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 active:bg-blue-800 transition"
+                        className="inline-flex items-center gap-2 rounded-md bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 active:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         + New
                     </button>
