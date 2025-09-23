@@ -18,9 +18,8 @@ export type UserDocument = {
     created_at: string; // ISO-8601
 };
 
-export type DocumentsResult =
-    | { ok: true; data: UserDocument[] }
-    | { ok: false; error: string; status?: number };
+export type Error = {detail: string}
+export type DocumentsResult = { ok: true; data: UserDocument[] } | { ok: false; status: number; error: string };
 
 export async function deleteUserDocument(documentId: string): Promise<DocumentsResult> {
     try {
@@ -28,21 +27,19 @@ export async function deleteUserDocument(documentId: string): Promise<DocumentsR
         const res = await fetch(pathToDeleteDocument, {
             method: "DELETE",
             headers: {
-                Accept: "application/json",
+                Accept: "application/docs",
                 Authorization: `Bearer ${getToken() || ""}`,
             },
         });
-
-        const json = await res.json().catch(() => ({}));
-
         if (!res.ok) {
-            const msg = (json && (json.msg || json.message || json.error)) || res.statusText || "Failed to delete document";
-            return { ok: false, error: msg, status: res.status };
+            const error: Error = await res.json();
+            return { ok: false, error: error.detail, status: res.status };
         }
 
-        return { ok: true, data: json };
+        const docs: UserDocument[] = await res.json().catch(() => ({}));
+        return { ok: true, data: docs };
     } catch (e: any) {
-        return { ok: false, error: e?.message || "Network error" };
+        return { ok: false, error: e?.message, status: 500 };
     }
 }
 
@@ -56,23 +53,20 @@ export async function getUserDocuments(): Promise<DocumentsResult> {
                 Authorization: `Bearer ${getToken() || ""}`,
             },
         });
-
-        // Attempt to parse JSON either way
-        const json = await res.json().catch(() => ([]));
-
         if (!res.ok) {
-            const msg = (json && (json.msg || json.message || json.error)) || res.statusText || "Failed to fetch documents";
-            return { ok: false, error: msg, status: res.status };
+            const msg: Error = await res.json();
+            return { ok: false, error: msg.detail, status: res.status };
         }
 
         // Ensure it's an array
-        const docs: UserDocument[] = Array.isArray(json) ? json : [];
+        const responseParsed = await res.json();
+        const docs: UserDocument[] = Array.isArray(responseParsed) ? responseParsed : [];
         // Sort by newest first
         docs.sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
 
         return { ok: true, data: docs };
     } catch (e: any) {
-        return { ok: false, error: e?.message || "Network error" };
+        return { ok: false, error: e.message, status: 500 };
     }
 }
 

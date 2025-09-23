@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {useEffect, useMemo, useState} from "react";
+import {useNavigate} from "react-router-dom";
 import TopBar from "../components/TopBar";
-import {deleteUserDocument, getUserDocuments, type UserDocument} from "../lib/documents";
+import {deleteUserDocument, type DocumentsResult, getUserDocuments, type UserDocument} from "../lib/documents";
 import DeleteDocumentModal from "../components/DeleteDocumentModal.tsx";
 
 export default function DocumentsPage() {
@@ -11,13 +11,13 @@ export default function DocumentsPage() {
     const navigate = useNavigate();
 
     const [modalOpen, setModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<"confirm" | "deleting" | "success" | "error">("confirm");
+    const [modalMode, setModalMode] = useState<"confirm" | "deleting" | "success" | "error" | "Not found">("confirm");
     const [modalMsg, setModalMsg] = useState<string | undefined>(undefined);
     const [selected, setSelected] = useState<{ id: string; fileName?: string } | null>(null);
 
 
     function openDeleteConfirm(id: string, fileName?: string) {
-        setSelected({ id, fileName });
+        setSelected({id, fileName});
         setModalMsg(undefined);
         setModalMode("confirm");
         setModalOpen(true);
@@ -27,6 +27,15 @@ export default function DocumentsPage() {
         if (!selected) return;
         setModalMode("deleting");
         const res = await deleteUserDocument(selected.id);
+        if (!res.ok && res.status === 404) {
+            setModalMode("Not found");
+            setModalMsg(res.error);
+            return;
+        }
+        if (!res.ok && (res.status === 401 || res.status === 403)) {
+            navigate("/login", {replace: true});
+            return;
+        }
         if (!res.ok) {
             setModalMode("error");
             setModalMsg(res.error);
@@ -44,55 +53,49 @@ export default function DocumentsPage() {
         setModalMsg(undefined);
     }
 
+    function retrieveDocuments() {
+        return () => {
+            (async () => {
+                setError(null);
+                const res: DocumentsResult = await getUserDocuments();
+                if (res.ok) {
+                    setLoading(false);
+                    setDocs(res.data);
+                }
 
-    useEffect(() => {
-        (async () => {
-            setLoading(true);
-            setError(null);
-            const res = await getUserDocuments();
-            setLoading(false);
-
-            if (!res.ok) {
-                // if token invalid/expired, go to login
-                if (res.status === 401 || res.status === 403) {
-                    navigate("/login", { replace: true });
+                if (!res.ok && res.status === 404) {
+                    setLoading(false);
+                    setDocs([])
+                    setError("No documents found");
                     return;
                 }
-                setError(res.error);
-                return;
-            }
 
-            setDocs(res.data);
-        })();
-    }, [navigate]);
+                if (!res.ok && (res.status === 401 || res.status === 403)) {
+                    // if token invalid/expired, go to login
+                    navigate("/login", {replace: true});
+                    return;
+                }
+                setLoading(false);
+                setError("No documents found");
+                setDocs([])
+            })();
+        };
+    }
+
+    useEffect(retrieveDocuments(), [navigate]);
 
     const rows = useMemo(() => docs, [docs]);
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            <TopBar />
+            <TopBar/>
             <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <div className="border-b border-gray-200 px-4 py-3 flex items-center justify-between">
                         <h1 className="text-sm font-semibold">My Documents</h1>
                         {/* optional refresh */}
                         <button
-                            onClick={() => {
-                                setLoading(true);
-                                setError(null);
-                                getUserDocuments().then((res) => {
-                                    setLoading(false);
-                                    if (!res.ok) {
-                                        if (res.status === 401 || res.status === 403) {
-                                            navigate("/login", { replace: true });
-                                            return;
-                                        }
-                                        setError(res.error);
-                                    } else {
-                                        setDocs(res.data);
-                                    }
-                                });
-                            }}
+                            onClick={() => retrieveDocuments()}
                             className="rounded-md border border-gray-300 px-3 py-1.5 text-xs hover:bg-gray-50"
                         >
                             Refresh
@@ -100,13 +103,6 @@ export default function DocumentsPage() {
                     </div>
 
                     {/* states */}
-                    {loading && (
-                        <div className="p-6 text-sm text-gray-600 flex items-center gap-2">
-                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
-                            Loading documents…
-                        </div>
-                    )}
-
                     {!loading && error && (
                         <div className="p-6 text-sm text-red-600">
                             {error}

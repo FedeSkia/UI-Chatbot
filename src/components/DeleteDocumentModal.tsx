@@ -1,6 +1,6 @@
 import {useEffect} from "react";
 
-type Mode = "confirm" | "deleting" | "success" | "error";
+type Mode = "confirm" | "deleting" | "success" | "error" | "Not found";
 
 export default function DeleteDocumentModal({
                                                 open,
