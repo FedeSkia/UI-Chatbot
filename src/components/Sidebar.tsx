@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse.ts";
 
 export default function Sidebar({
@@ -6,15 +6,16 @@ export default function Sidebar({
                                     conversationThreads,
                                     onSelect,
                                     onNew,
-                                    isChatBotResponding
+                                    isChatBotResponding,
+                                    sidebarOpen
                                 }: {
     activeThreadId: string | null;
     conversationThreads: UserConversationThreadsResponse | null;
     onSelect: (id: string) => void;
     onNew: () => void;
     isChatBotResponding: boolean;
+    sidebarOpen: boolean;
 }) {
-    const [sidebarOpen, setSidebarOpen] = useState(true);
 
     const userConversationThreadsOrderedByDate = useMemo(() => {
         if (conversationThreads) {
@@ -30,19 +31,10 @@ export default function Sidebar({
             className={[
                 "shrink-0 relative transition-all duration-300",
                 // When open, use responsive width; when closed, keep a slim rail so the toggle stays accessible
-                sidebarOpen ? "w-[clamp(240px,24vw,380px)]" : "w-6",
+                sidebarOpen ? "w-[clamp(240px,24vw,380px)]" : "w-0",
             ].join(" ")}
             aria-expanded={sidebarOpen}
         >
-            <button
-                type="button"
-                onClick={() => setSidebarOpen((v) => !v)}
-                className="absolute top-3 -right-3 z-20 rounded-full border border-gray-300 bg-white shadow px-2 py-1 text-xs hover:bg-gray-100 active:bg-gray-200"
-                aria-label={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-                title={sidebarOpen ? "Close" : "Open"}
-            >
-                {sidebarOpen ? "←" : "→"}
-            </button>
             {/* The actual panel */}
             <div
                 className={[

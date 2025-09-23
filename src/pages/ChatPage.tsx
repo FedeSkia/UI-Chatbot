@@ -12,11 +12,12 @@ import TopBar from "../components/TopBar.tsx";
 const API_URL = import.meta.env.VITE_API_URL as string;
 
 
-export default function ChatPage() {
+export function ChatPage() {
     const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
     const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
     const navigate = useNavigate();
     const [isChatBotResponding, setIsChatBotResponding] = useState(false);
+    const [sidebarOpen, setIssidebarOpen] = useState(true);
 
     useEffect(() => {
         (async () => {
@@ -71,7 +72,9 @@ export default function ChatPage() {
 
     return (
         <div className="mx-auto max-w-7xl px-4 py-4">
-            <TopBar/>
+            <TopBar
+                setIsSidebarOpen={setIssidebarOpen}
+                isSideBarOpen={sidebarOpen}/>
             <div className="flex gap-4">
                 <Sidebar
                     conversationThreads={conversationThreads}
@@ -79,6 +82,7 @@ export default function ChatPage() {
                     onSelect={handleSelect}
                     onNew={handleNew}
                     isChatBotResponding={isChatBotResponding}
+                    sidebarOpen={sidebarOpen}
                 />
 
                 <main className="min-w-0 flex-1">
