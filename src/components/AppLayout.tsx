@@ -9,7 +9,7 @@ export default function AppLayout() {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            <TopBar showSideBar={showSidebar} isSideBarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+            <TopBar/>
             <div className="flex-1">
                 <div className="mx-auto max-w-7xl px-4 py-4">
                     <div className="flex gap-4">
