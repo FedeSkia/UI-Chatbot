@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
 import {useNavigate} from "react-router-dom";
-import TopBar from "../components/TopBar";
 import {deleteUserDocument, type DocumentsResult, getUserDocuments, type UserDocument} from "../lib/documents";
 import DeleteDocumentModal from "../components/DeleteDocumentModal.tsx";
 import UploadButton from "../components/UploadButton.tsx";
@@ -91,7 +90,6 @@ export default function DocumentsPage() {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            <TopBar showSideBar={false} isSideBarOpen={false} setIsSidebarOpen={(prev) => prev}/>
             <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <div className="border-b border-gray-200 px-4 py-3 flex items-center justify-between">

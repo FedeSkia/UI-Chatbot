@@ -7,14 +7,12 @@ export default function Sidebar({
                                     onSelect,
                                     onNew,
                                     isChatBotResponding,
-                                    sidebarOpen
                                 }: {
     activeThreadId: string | null;
     conversationThreads: UserConversationThreadsResponse | null;
     onSelect: (id: string) => void;
     onNew: () => void;
     isChatBotResponding: boolean;
-    sidebarOpen: boolean;
 }) {
 
     const userConversationThreadsOrderedByDate = useMemo(() => {
@@ -30,19 +28,16 @@ export default function Sidebar({
         <aside
             className={[
                 "shrink-0 relative transition-all duration-300",
-                // When open, use responsive width; when closed, keep a slim rail so the toggle stays accessible
-                sidebarOpen ? "w-[clamp(240px,24vw,380px)]" : "w-0",
+                "w-[clamp(240px,24vw,380px)]",
+                "aria-expanded: true"
             ].join(" ")}
-            aria-expanded={sidebarOpen}
         >
+
             {/* The actual panel */}
             <div
                 className={[
-                    "h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col",
-                    // When closed, hide inner content from a11y and tab order
-                    sidebarOpen ? "" : "pointer-events-none",
+                    "aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col",
                 ].join(" ")}
-                aria-hidden={!sidebarOpen}
             >
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50">
@@ -63,7 +58,7 @@ export default function Sidebar({
                 <div
                     className="p-2 overflow-y-auto divide-y divide-gray-200"
                     // prevent tabbing when closed
-                    tabIndex={sidebarOpen ? 0 : -1}
+                    tabIndex={0}
                 >
                     {userConversationThreadsOrderedByDate.length === 0 ? (
                         <div className="text-xs text-gray-500 px-2 py-3">
@@ -83,7 +78,7 @@ export default function Sidebar({
                                                     ? "bg-blue-50 border-blue-600"
                                                     : "border-gray-200 hover:bg-gray-50",
                                             ].join(" ")}
-                                            tabIndex={sidebarOpen ? 0 : -1}
+                                            tabIndex={0}
                                         >
                                             <div
                                                 className={[
