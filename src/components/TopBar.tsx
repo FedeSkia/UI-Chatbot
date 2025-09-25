@@ -63,8 +63,24 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
                         <button
                             onClick={handleLogout}
                             className="rounded-md bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700"
+                            aria-label="Logout"
+                            title="Logout"
                         >
-                            Logout
+                            {/* Logout icon: door with arrow */}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="h-4 w-4"
+                            >
+                                <path d="M16 17v1a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v1"/>
+                                <polyline points="10 12 22 12"/>
+                                <polyline points="18 8 22 12 18 16"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
