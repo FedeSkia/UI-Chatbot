@@ -1,4 +1,4 @@
-import {NavLink, useNavigate} from "react-router-dom";
+import {NavLink, useNavigate, useLocation} from "react-router-dom";
 import {clearToken, decodeEmailFromJwt, getRefreshToken, setRefreshToken} from "../lib/auth";
 
 interface TopBarProps {
@@ -8,7 +8,9 @@ interface TopBarProps {
 export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
 
     const navigate = useNavigate();
+    const location = useLocation();
     const email = decodeEmailFromJwt();
+    const isDocumentsPage = location.pathname.startsWith("/documents");
 
     function handleLogout() {
         clearToken?.();
@@ -39,15 +41,17 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
                 <div className="flex items-center justify-between py-3 gap-4">
                     <div className="flex items-center gap-2">
                         {/* Mobile sidebar toggle */}
-                        <button
-                            type="button"
-                            onClick={onToggleMobileSidebar}
-                            className="md:hidden mr-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow hover:bg-gray-100 active:bg-gray-200"
-                            aria-label="Toggle sidebar"
-                            title="Toggle sidebar"
-                        >
-                            ☰
-                        </button>
+                        {!isDocumentsPage && (
+                            <button
+                                type="button"
+                                onClick={onToggleMobileSidebar}
+                                className="md:hidden mr-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow hover:bg-gray-100 active:bg-gray-200"
+                                aria-label="Toggle sidebar"
+                                title="Toggle sidebar"
+                            >
+                                ☰
+                            </button>
+                        )}
                         <div
                             className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
                             AI
