@@ -103,7 +103,10 @@ export default function DocumentsPage() {
                         >
                             Refresh
                         </button>
-                        <UploadButton/>
+                        <UploadButton
+                            getUserDocuments={getUserDocuments}
+                            setDocs={setDocs}
+                        />
                     </div>
 
                     {/* states */}

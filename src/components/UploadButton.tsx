@@ -1,9 +1,14 @@
 // components/UploadButton.tsx
-import { useRef, useState } from "react";
+import {useRef, useState} from "react";
 import BlockingUploadModal from "./BlockingUploadModal";
-import {uploadDocument} from "../lib/documents.ts";
+import {type DocumentsResult, uploadDocument, type UserDocument} from "../lib/documents.ts";
 
-export default function UploadButton() {
+interface UploadButtonProps {
+    setDocs: (value: (((prevState: UserDocument[]) => UserDocument[]) | UserDocument[])) => void,
+    getUserDocuments: () => Promise<DocumentsResult>
+}
+
+export default function UploadButton({setDocs, getUserDocuments}: UploadButtonProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [modalOpen, setModalOpen] = useState(false);
     const [status, setStatus] = useState<"uploading" | "success" | "error">("uploading");
@@ -27,7 +32,10 @@ export default function UploadButton() {
         if (res.ok) {
             setStatus("success");
             setMsg("Your document has been uploaded.");
-            // TODO: refresh your documents list here if needed
+            const documentsResponse = await getUserDocuments();
+            if(documentsResponse.ok) {
+                setDocs(documentsResponse.data)
+            }
         } else {
             setStatus("error");
             setMsg(res.error);
@@ -58,7 +66,7 @@ export default function UploadButton() {
                 Upload Document
             </button>
 
-            <BlockingUploadModal open={modalOpen} status={status} message={msg} onClose={closeModal} />
+            <BlockingUploadModal open={modalOpen} status={status} message={msg} onClose={closeModal}/>
         </>
     );
 }
