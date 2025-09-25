@@ -32,14 +32,17 @@ export default function TopBar() {
             <div className="mx-auto max-w-7xl px-4">
                 {/* Top row: brand / toggle / user */}
                 <div className="flex items-center justify-between py-3 gap-4">
-
-                    <div className="flex items-center gap-3">
-                        <div className="hidden sm:block text-sm text-gray-700">
-                            {email ? `Logged in as: ${email}` : "Logged in"}
+                    <div className="flex items-center gap-2">
+                        <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
+                            AI
                         </div>
+                        <span className="text-lg font-bold text-gray-800">MyAssistant</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-600">{email}</span>
                         <button
                             onClick={handleLogout}
-                            className="inline-flex items-center gap-2 rounded-md bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700 active:bg-red-800 transition"
+                            className="rounded-md bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700"
                         >
                             Logout
                         </button>
@@ -47,7 +50,7 @@ export default function TopBar() {
                 </div>
 
                 {/* Tabs row (GitHub repo style) */}
-                <nav aria-label="Primary" className="-mb-px flex items-center gap-2">
+                <nav aria-label="Primary" className="-mb-px flex items-center gap-2 justify-center">
                     <NavLink to="/chat" end className={tabClasses}>
                         {/* optional icon */}
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
