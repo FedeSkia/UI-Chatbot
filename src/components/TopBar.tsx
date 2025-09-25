@@ -1,10 +1,15 @@
 import {NavLink, useNavigate} from "react-router-dom";
 import {clearToken, decodeEmailFromJwt, getRefreshToken, setRefreshToken} from "../lib/auth";
 
-export default function TopBar() {
+interface TopBarProps {
+    onToggleMobileSidebar?: () => void
+}
+
+export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
 
     const navigate = useNavigate();
     const email = decodeEmailFromJwt();
+
     function handleLogout() {
         clearToken?.();
         // clear refresh token if you store it
@@ -17,7 +22,7 @@ export default function TopBar() {
         }
     }
 
-    const tabClasses = ({ isActive }: { isActive: boolean }) =>
+    const tabClasses = ({isActive}: { isActive: boolean }) =>
         [
             "inline-flex items-center h-9 px-3 text-sm",
             "border-b-2",
@@ -33,7 +38,18 @@ export default function TopBar() {
                 {/* Top row: brand / toggle / user */}
                 <div className="flex items-center justify-between py-3 gap-4">
                     <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
+                        {/* Mobile sidebar toggle */}
+                        <button
+                            type="button"
+                            onClick={onToggleMobileSidebar}
+                            className="md:hidden mr-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow hover:bg-gray-100 active:bg-gray-200"
+                            aria-label="Toggle sidebar"
+                            title="Toggle sidebar"
+                        >
+                            ☰
+                        </button>
+                        <div
+                            className="h-8 w-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">
                             AI
                         </div>
                         <span className="text-lg font-bold text-gray-800">MyAssistant</span>
@@ -54,15 +70,15 @@ export default function TopBar() {
                     <NavLink to="/chat" end className={tabClasses}>
                         {/* optional icon */}
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeWidth="2" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                            <path strokeWidth="2" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
                         </svg>
                         Chat
                     </NavLink>
 
                     <NavLink to="/documents" className={tabClasses}>
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeWidth="2" d="M7 3h8l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z" />
-                            <path strokeWidth="2" d="M15 3v4h4" />
+                            <path strokeWidth="2" d="M7 3h8l4 4v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2z"/>
+                            <path strokeWidth="2" d="M15 3v4h4"/>
                         </svg>
                         Documents
                     </NavLink>

@@ -1,5 +1,7 @@
 import { useMemo } from "react";
 import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse.ts";
+import {orderConversationThreads} from "../lib/documents.ts";
+
 
 export default function Sidebar({
                                     activeThreadId,
@@ -15,14 +17,7 @@ export default function Sidebar({
     isChatBotResponding: boolean;
 }) {
 
-    const userConversationThreadsOrderedByDate = useMemo(() => {
-        if (conversationThreads) {
-            return [...conversationThreads.threads].sort(
-                (a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)
-            );
-        }
-        return [];
-    }, [conversationThreads]);
+    const userConversationThreadsOrderedByDate = useMemo(orderConversationThreads(conversationThreads), [conversationThreads]);
 
     return (
         <aside

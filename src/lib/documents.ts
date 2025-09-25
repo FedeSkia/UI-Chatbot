@@ -1,4 +1,5 @@
 import {getToken} from "./auth.ts";
+import type {UserConversationThreadsResponse} from "./conversationMessagesResponse.ts";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 const VITE_DOCUMENT_UPLOAD_PATH = import.meta.env.VITE_DOCUMENT_UPLOAD_PATH as string;
@@ -100,4 +101,15 @@ export async function uploadDocument(file: File): Promise<UploadResult> {
     } catch (e: any) {
         return {filename: file.name, ok: false, error: e?.message || "Network error"};
     }
+}
+
+export function orderConversationThreads(conversationThreads: UserConversationThreadsResponse | null) {
+    return () => {
+        if (conversationThreads) {
+            return [...conversationThreads.threads].sort(
+                (a, b) => Date.parse(b.updated_at) - Date.parse(a.updated_at)
+            );
+        }
+        return [];
+    };
 }
