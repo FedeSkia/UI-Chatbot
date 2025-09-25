@@ -59,7 +59,9 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
                         <span className="text-lg font-bold text-gray-800">MyAssistant</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-600">{email}</span>
+                        <span className="max-w-[150px] truncate text-sm text-gray-600">
+                            {email}
+                        </span>
                         <button
                             onClick={handleLogout}
                             className="rounded-md bg-red-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-red-700"
