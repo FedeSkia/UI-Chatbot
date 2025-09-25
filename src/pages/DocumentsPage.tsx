@@ -91,7 +91,7 @@ export default function DocumentsPage() {
 
     return (
         <div className="min-h-screen flex flex-col bg-gray-50">
-            <TopBar/>
+            <TopBar showSideBar={false} isSideBarOpen={false} setIsSidebarOpen={(prev) => prev}/>
             <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">
                 <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                     <div className="border-b border-gray-200 px-4 py-3 flex items-center justify-between">
