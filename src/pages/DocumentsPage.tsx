@@ -15,7 +15,6 @@ export default function DocumentsPage() {
     const [modalMsg, setModalMsg] = useState<string | undefined>(undefined);
     const [selected, setSelected] = useState<{ id: string; fileName?: string } | null>(null);
 
-
     function openDeleteConfirm(id: string, fileName?: string) {
         setSelected({id, fileName});
         setModalMsg(undefined);
@@ -154,10 +153,11 @@ export default function DocumentsPage() {
             <DeleteDocumentModal
                 open={modalOpen}
                 mode={modalMode}
-                fileName={selected?.fileName}
+                name={selected?.fileName}
                 message={modalMsg}
                 onConfirm={confirmDelete}
                 onClose={closeModal}
+                subjectLabel={"document"}
             />
         </div>
     );

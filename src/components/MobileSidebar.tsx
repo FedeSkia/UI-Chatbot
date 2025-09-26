@@ -1,6 +1,7 @@
-import {useEffect, useMemo} from "react";
-import type {UserConversationThreadsResponse} from "../lib/conversationMessagesResponse.ts";
-import {orderConversationThreads} from "../lib/documents.ts";
+import { useEffect, useMemo, useState } from "react";
+import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse";
+import { orderConversationThreads } from "../lib/documents";
+import DeleteDocumentModal from "./DeleteDocumentModal";
 
 export default function MobileSidebar({
                                           isMobileSideBarOpen,
@@ -9,15 +10,17 @@ export default function MobileSidebar({
                                           onSelect,
                                           onNew,
                                           isChatBotResponding,
-                                          setIsMobileSidebarOpen
+                                          setIsMobileSidebarOpen,
+                                          onDelete, // ← add this prop
                                       }: {
-    isMobileSideBarOpen: boolean,
-    conversationThreads: UserConversationThreadsResponse | null,
-    activeThreadId: string | null,
-    onSelect: (threadId: string) => void,
-    onNew: () => void,
-    isChatBotResponding: boolean,
-    setIsMobileSidebarOpen: (value: (((prevState: boolean) => boolean) | boolean)) => void
+    isMobileSideBarOpen: boolean;
+    conversationThreads: UserConversationThreadsResponse | null;
+    activeThreadId: string | null;
+    onSelect: (threadId: string) => void;
+    onNew: () => void;
+    isChatBotResponding: boolean;
+    setIsMobileSidebarOpen: (value: (((prevState: boolean) => boolean) | boolean)) => void;
+    onDelete: (id: string) => void | Promise<void>;
 }) {
     // lock background scroll when open
     useEffect(() => {
@@ -29,8 +32,45 @@ export default function MobileSidebar({
         };
     }, [isMobileSideBarOpen]);
 
-    const userConversationThreadsOrderedByDate = useMemo(orderConversationThreads(conversationThreads), [conversationThreads]);
+    const userConversationThreadsOrderedByDate = useMemo(
+        orderConversationThreads(conversationThreads),
+        [conversationThreads]
+    );
 
+    // Modal state
+    const [modalOpen, setModalOpen] = useState(false);
+    const [modalMode, setModalMode] =
+        useState<"confirm" | "deleting" | "success" | "error" | "Not found">("confirm");
+    const [modalMsg, setModalMsg] = useState<string | undefined>(undefined);
+    const [selectedThreadToDelete, setSelectedThreadToDelete] = useState<string | null>(null);
+
+    function openDeleteConfirm(threadId: string) {
+        setSelectedThreadToDelete(threadId);
+        setModalMsg(undefined);
+        setModalMode("confirm");
+        setModalOpen(true);
+    }
+
+    async function confirmDelete() {
+        if (!selectedThreadToDelete) return;
+        try {
+            setModalMode("deleting");
+            await Promise.resolve(onDelete(selectedThreadToDelete));
+            setModalMode("success");
+            setModalMsg("Conversation has been deleted.");
+            // Optionally close drawer after a short delay:
+            // setTimeout(() => setIsMobileSidebarOpen(false), 400);
+        } catch (e: any) {
+            setModalMode("error");
+            setModalMsg(e?.message || "Delete failed.");
+        }
+    }
+
+    function closeModal() {
+        setModalOpen(false);
+        setSelectedThreadToDelete(null);
+        setModalMsg(undefined);
+    }
 
     if (!isMobileSideBarOpen) return null;
 
@@ -86,13 +126,18 @@ export default function MobileSidebar({
                                 const active = thread.thread_id === activeThreadId;
                                 return (
                                     <li key={thread.thread_id}>
-                                        <button
-                                            aria-busy={isChatBotResponding}
-                                            disabled={isChatBotResponding}
+                                        <div
+                                            role="button"
+                                            tabIndex={0}
                                             onClick={() => {
                                                 onSelect(thread.thread_id);
-                                                // close drawer after selecting
                                                 setIsMobileSidebarOpen(false);
+                                            }}
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter" || e.key === " ") {
+                                                    onSelect(thread.thread_id);
+                                                    setIsMobileSidebarOpen(false);
+                                                }
                                             }}
                                             className={[
                                                 "w-full group flex items-start gap-2 px-3 py-2 rounded-lg text-left border transition-colors",
@@ -105,7 +150,26 @@ export default function MobileSidebar({
                                                     Conversation started on {new Date(thread.updated_at).toLocaleString()}
                                                 </div>
                                             </div>
-                                        </button>
+                                            {/* Delete icon (span to avoid nested button issues) */}
+                                            <span
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if(isChatBotResponding) {
+                                                        return;
+                                                    } else {
+                                                        openDeleteConfirm(thread.thread_id);
+                                                    }
+                                                }}
+                                                className="ml-2 text-red-500 hover:text-red-700 cursor-pointer"
+                                                title="Delete conversation"
+                                                aria-label="Delete conversation"
+                                            >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-6 4h8" />
+                        </svg>
+                      </span>
+                                        </div>
                                     </li>
                                 );
                             })}
@@ -118,6 +182,17 @@ export default function MobileSidebar({
             <style>{`
         @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
       `}</style>
+
+            {/* Delete modal */}
+            <DeleteDocumentModal
+                open={modalOpen}
+                mode={modalMode}
+                subjectLabel="conversation"
+                name={selectedThreadToDelete || undefined}
+                message={modalMsg}
+                onConfirm={confirmDelete}
+                onClose={closeModal}
+            />
         </div>
     );
 }

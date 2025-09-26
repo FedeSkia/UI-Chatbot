@@ -2,6 +2,7 @@ import {getToken} from "./auth.ts";
 import {refreshToken} from "./refreshToken.ts";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
+const VITE_CHAT_DELETE_PATH = import.meta.env.VITE_CHAT_DELETE_PATH;
 
 export type UserConversationThreadsResponse = {
     ok: boolean,
@@ -25,6 +26,48 @@ export type ConversationMessagesResponse = {
     error: string;
     messages: ConversationMessage[];
 };
+
+export type DeletedConversationResponse = {
+    status: string,
+    thread_id: string
+}
+
+export type DeletedConversation = {
+    ok: boolean,
+    deletedConversation: DeletedConversationResponse
+}
+
+
+export async function deleteThread(threadId: string): Promise<DeletedConversation> {
+    try {
+        const deleteUrl = API_URL + VITE_CHAT_DELETE_PATH + threadId;
+        const res = await fetch(deleteUrl, {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${getToken()}`,
+                "Content-Type": "application/json",
+            }
+        });
+
+        if(res.status !== 200) {
+            const refreshTokenResponse = await refreshToken();
+            if( refreshTokenResponse.ok ) {
+                return deleteThread(threadId);
+            }
+            return {ok: false, deletedConversation: {status: "Unknown", thread_id: threadId}}
+        }
+
+        const response: DeletedConversationResponse = await res.json();
+        return {
+            ok: true,
+            deletedConversation: response
+        };
+
+    } catch (e: any) {
+        return {ok: false, error: e?.message, threads: []};
+    }
+}
+
 
 export async function getUserThreads(): Promise<UserConversationThreadsResponse> {
     try {
