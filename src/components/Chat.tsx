@@ -119,6 +119,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
     const handleSend = async () => {
         const text = input.trim();
+        setInput("") //reset the box with the user input
         if (!text) return;
 
         // If somehow token disappeared since mount, redirect
@@ -220,7 +221,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
               <span className="relative inline-flex rounded-full size-2"></span>
             </span>
-                        Thinking…
+                        Replying…
                     </div>
                 )}
             </div>
