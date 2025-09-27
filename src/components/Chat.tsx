@@ -7,6 +7,8 @@ import {
     getUserThreads,
     type UserConversationThreadsResponse
 } from "../lib/conversationMessagesResponse";
+import { useOutletContext } from "react-router-dom";
+import type { LayoutOutletCtx } from "../components/AppLayout";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -19,6 +21,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 }) {
     const location = useLocation();
     const navigate = useNavigate();
+    const { isAppBusy } = useOutletContext<LayoutOutletCtx>(); // 👈 get setter
 
     useEffect(() => {
         if (!getToken()) {
@@ -140,6 +143,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         setLoading(true);
         try {
             setIsChatBotResponding(true);
+            isAppBusy(true);
             let response = await sendMsg(text);
             updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
@@ -185,6 +189,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             setIsChatBotResponding(false);
             setLoading(false);
             scrollToBottom();
+            isAppBusy(false);
         }
     };
 
