@@ -19,7 +19,7 @@ type LayoutCtx = {
 
 export function ChatPage() {
     const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
-    const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+    const [activeThreadId, setActiveThreadId] = useState<string | null | undefined>(null);
     const navigate = useNavigate();
     const [isChatBotResponding, setIsChatBotResponding] = useState(false);
     const {isMobileSidebarOpen, setIsMobileSidebarOpen} =
@@ -33,7 +33,8 @@ export function ChatPage() {
         }
         setConversationThreads(res);
         if (res.threads && res.threads.length > 0) {
-            setActiveThreadId((prev) => prev ?? res.threads[0].thread_id)
+            const newActiveThreadId = res.threads.find(value => value.has_msg)?.thread_id;
+            setActiveThreadId(newActiveThreadId);
         } else {
             setActiveThreadId(null);
         }
@@ -50,6 +51,7 @@ export function ChatPage() {
             thread_id: tempId,
             created_at: now,
             updated_at: now,
+            has_msg: false,
         };
 
         if (!prev) {
@@ -67,15 +69,20 @@ export function ChatPage() {
     }
 
     function handleNew() {
-        setActiveThreadId(null);
+        //Do nothing if empty conversation already exists
+        if(conversationThreads && conversationThreads.threads && conversationThreads.threads.length > 0) {
+            const foundEmptyConversation = conversationThreads?.threads.find(value => value.has_msg);
+            if(foundEmptyConversation === undefined) {
+                return
+            }
+        }
 
         const now = new Date().toISOString();
         const tempId = `tmp-${crypto.randomUUID()}`; // placeholder id for UI only
-
+        setActiveThreadId(tempId);
         setConversationThreads(prev => {
             return addDummyThreadToConversations(tempId, now, prev);
         });
-        setActiveThreadId(tempId)
     }
 
     function handleSelect(threadId: string) {

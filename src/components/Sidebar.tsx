@@ -1,6 +1,5 @@
-// …imports…
 import { useMemo, useState } from "react";
-import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse";
+import type {UserConversationThread, UserConversationThreadsResponse} from "../lib/conversationMessagesResponse";
 import { orderConversationThreads } from "../lib/documents";
 import DeleteDocumentModal from "./DeleteDocumentModal";
 
@@ -12,7 +11,7 @@ export default function Sidebar({
                                     isChatBotResponding,
                                     onDelete, // parent deletion callback
                                 }: {
-    activeThreadId: string | null;
+    activeThreadId: string | null | undefined;
     conversationThreads: UserConversationThreadsResponse | null;
     onSelect: (id: string) => void;
     onNew: () => void;
@@ -43,7 +42,7 @@ export default function Sidebar({
         try {
             setModalMode("deleting");
             // Call parent delete (can be async)
-            await Promise.resolve(onDelete(selectedThreadToDelete));
+            await onDelete(selectedThreadToDelete);
             setModalMode("success");
             setDeleteConversationModalMsg("Conversation has been deleted.");
         } catch (e: any) {
@@ -58,6 +57,19 @@ export default function Sidebar({
         setDeleteConversationModalMsg(undefined);
     }
 
+    function textToDisplay(thread: UserConversationThread) {
+        if(thread.has_msg) {
+            return <div className="text-[11px] text-black">
+                Conversation started
+                on {new Date(thread.updated_at).toLocaleString()}
+            </div>
+        } else {
+            return <div className="text-[11px] text-black">
+                Empty conversation
+            </div>
+        }
+    }
+
     return (
         <aside
             className={[
@@ -67,7 +79,8 @@ export default function Sidebar({
             ].join(" ")}
         >
             {/* Panel */}
-            <div className="aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col">
+            <div
+                className="aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col">
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50">
                     <div className="flex items-center gap-2">
@@ -108,9 +121,7 @@ export default function Sidebar({
                                                 ].join(" ")}
                                             />
                                             <div className="min-w-0 flex-1">
-                                                <div className="text-[11px] text-black">
-                                                    Conversation started on {new Date(thread.updated_at).toLocaleString()}
-                                                </div>
+                                                {textToDisplay(thread)}
                                             </div>
 
                                             {/* Delete icon */}
@@ -118,7 +129,7 @@ export default function Sidebar({
                                                 aria-busy={isChatBotResponding}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if(isChatBotResponding) {
+                                                    if (isChatBotResponding) {
                                                         return;
                                                     } else {
                                                         openDeleteConfirm(thread.thread_id);

@@ -13,7 +13,8 @@ export type UserConversationThreadsResponse = {
 export type UserConversationThread = {
     "thread_id": string,
     "created_at": string,
-    "updated_at": string
+    "updated_at": string,
+    "has_msg": boolean
 }
 
 export type ConversationMessage = {

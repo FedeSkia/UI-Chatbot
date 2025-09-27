@@ -15,7 +15,7 @@ export default function MobileSidebar({
                                       }: {
     isMobileSideBarOpen: boolean;
     conversationThreads: UserConversationThreadsResponse | null;
-    activeThreadId: string | null;
+    activeThreadId: string | null | undefined;
     onSelect: (threadId: string) => void;
     onNew: () => void;
     isChatBotResponding: boolean;
