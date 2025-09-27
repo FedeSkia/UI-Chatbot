@@ -15,7 +15,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     threadId: string | null,
     updateThreadId: (id: string) => void,
     setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void,
-    setIsChatBotResponding: any
+    setIsChatBotResponding: (value: boolean) => void,
 }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -195,8 +195,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     };
 
     return (
-        <div
-            className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -210,7 +209,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Messages */}
-            <div ref={viewportRef} className="h-[480px] overflow-y-auto px-4 py-4 space-y-4">
+            <div ref={viewportRef} className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4">
                 {messages.map((m) => (
                     <Bubble key={m.id} role={m.role} content={m.content}/>
                 ))}

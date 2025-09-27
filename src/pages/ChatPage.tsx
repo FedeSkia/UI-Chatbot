@@ -9,8 +9,6 @@ import {
 } from "../lib/conversationMessagesResponse.ts";
 import Sidebar from "../components/Sidebar.tsx";
 import MobileSidebar from "../components/MobileSidebar.tsx";
-import DeleteDocumentModal from "../components/DeleteDocumentModal.tsx";
-import {deleteUserDocument} from "../lib/documents.ts";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
@@ -128,7 +126,7 @@ export function ChatPage() {
                         />
                     )}
                 </div>
-                <main className="min-w-0 flex-1">
+                <main className="min-w-0 flex-1 flex min-h-0">
                     <Chat
                         apiUrl={API_URL}
                         threadId={activeThreadId}
