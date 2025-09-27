@@ -98,8 +98,8 @@ export function ChatPage() {
 
 
     return (
-        <div className="">
-            <div className="flex gap-4">
+        <div className="w-full px-2 sm:px-4 py-3 flex-1 overflow-hidden">
+            <div className="flex gap-4 h-full min-h-0">
                 {/* Desktop sidebar */}
                 <div className="hidden md:block">
                     <Sidebar
@@ -123,7 +123,6 @@ export function ChatPage() {
                             onNew={handleNew}
                             isChatBotResponding={isChatBotResponding}
                             onDelete={async (id) => {
-                                // call your backend delete and then update local threads
                                 await deleteConversationThread(id);
                                 setConversationThreads((prev) =>
                                     prev ? { ...prev, threads: prev.threads.filter(t => t.thread_id !== id) } : prev

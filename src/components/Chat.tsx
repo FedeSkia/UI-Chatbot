@@ -210,7 +210,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Messages */}
-            <div ref={viewportRef} className="flex-1 min-h-0 overflow-y-auto px-2 py-4 space-y-2">
+            <div ref={viewportRef} className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
                 {messages.map((m) => (
                     <Bubble key={m.id} role={m.role} content={m.content}/>
                 ))}
