@@ -60,7 +60,7 @@ export default function TopBar({onToggleMobileSidebar, isAppBusy}: TopBarProps) 
                         <span className="text-lg font-bold text-gray-800">MyAssistant</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <span className="max-w-[150px] truncate text-sm text-gray-600">
+                        <span className="max-w-[200px] truncate text-sm text-gray-600">
                             {email}
                         </span>
                         <button
