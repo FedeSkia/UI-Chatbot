@@ -8,6 +8,7 @@ import {
     type UserConversationThreadsResponse
 } from "../lib/conversationMessagesResponse";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
+import Bubble from "./Bubble.tsx";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
@@ -19,8 +20,22 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 }) {
     const location = useLocation();
     const navigate = useNavigate();
-    const { setBusy } = useAppBusy();
+
+    const [thinkingText, setThinkingText] = useState("");
+    const [showThinking, setShowThinking] = useState(false);
+    const bufferRef = useRef("");
+    const [messages, setMessages] = useState<Msg[]>([]);
+    const [input, setInput] = useState("");
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        viewportRef.current?.scrollTo({top: viewportRef.current.scrollHeight, behavior: "smooth"});
+    };
+
+    const {setBusy} = useAppBusy();
     const {isBusy} = useAppBusy();
+
+    const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
 
     useEffect(() => {
         if (!getToken()) {
@@ -58,33 +73,22 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     }, [threadId, navigate, location]);
 
     useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
+
+    useEffect(() => {
         if (!threadId) {
             setMessages([]);
             setInput("");
         }
     }, [threadId]);
 
-    const [messages, setMessages] = useState<Msg[]>([]);
-
-    const [input, setInput] = useState("");
-    const viewportRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        viewportRef.current?.scrollTo({top: viewportRef.current.scrollHeight, behavior: "smooth"});
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [messages]);
-
-    const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
-
     async function sendMsg(text: string) {
         const headers: Record<string, string> = {
             "Content-Type": "application/json",
             accept: "application/json",
             Authorization: `Bearer ${getToken() || ""}`,
-            ...(threadId ? { "X-Thread-Id": threadId } : {}), // only if present
+            ...(threadId ? {"X-Thread-Id": threadId} : {}), // only if present
         };
         return await fetch(`${apiUrl}/api/chat/invoke`, {
             method: "POST",
@@ -132,11 +136,14 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         // push user + placeholder
         const userId = crypto.randomUUID();
         const asstId = crypto.randomUUID();
-        setMessages((m) => [
-            ...m,
-            {id: userId, role: "user", content: text},
-            {id: asstId, role: "assistant", content: ""}
-        ]);
+        let asstIndex = -1;
+        setMessages((m) => {
+            const userMsg = { id: userId, role: "user" as const, content: text };
+            const asstMsg = { id: asstId, role: "assistant" as const, content: "" };
+            const next = [...m, userMsg, asstMsg];
+            asstIndex = next.length - 1;
+            return next;
+        });
 
         try {
             setBusy(true);
@@ -164,16 +171,42 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
+
                 const chunk = decoder.decode(value, {stream: true});
-                setMessages((m) =>
-                    m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
-                );
+
+                // 1) accumulate everything in a buffer so regex can match across chunk boundaries
+                bufferRef.current += chunk;
+
+                // 2) extract all complete <think>...</think> blocks (non-greedy)
+                const thinkRe = /<think>([\s\S]*?)<\/think>/g;
+                let match: RegExpExecArray | null;
+                let totalThinkAppended = "";
+
+                while ((match = thinkRe.exec(bufferRef.current)) !== null) {
+                    totalThinkAppended += match[1]; // capture inside the tags
+                }
+
+                if (totalThinkAppended) {
+                    setThinkingText(prev => prev + totalThinkAppended);
+                }
+
+                // 3) visible text = full buffer with all <think> blocks removed
+                const visible = bufferRef.current.replace(thinkRe, "");
+
+                // 4) update the assistant placeholder message with only the visible text
+                setMessages((prev) => {
+                    const next = prev.slice();
+                    if (asstIndex >= 0 && asstIndex < next.length) {
+                        next[asstIndex] = { ...next[asstIndex], content: visible };
+                    }
+                    return next;
+                });
             }
             if (!threadId) {
                 // refresh the sidebar list after the first message created a new thread
                 const res = await getUserThreads();
                 if (!res.ok && res.error === "Unauthenticated") {
-                    navigate("/login", { replace: true });
+                    navigate("/login", {replace: true});
                     return;
                 }
                 setConversationThreads?.(res);
@@ -195,7 +228,8 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     };
 
     return (
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -211,8 +245,27 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             {/* Messages */}
             <div ref={viewportRef} className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
                 {messages.map((m) => (
-                    <Bubble key={m.id} role={m.role} content={m.content}/>
+                    <Bubble key={m.id} role={m.role} content={m.content} />
                 ))}
+                {Boolean(thinkingText) && (
+                    <div className="flex justify-start">
+                        <div className="max-w-[80%] rounded-2xl px-3 py-2 text-sm bg-amber-50 border border-amber-200 text-amber-900">
+                            <button
+                                type="button"
+                                onClick={() => setShowThinking((v) => !v)}
+                                className="mb-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs bg-amber-100 hover:bg-amber-200"
+                            >
+                                <span>🧠 Thinking</span>
+                                <span className="opacity-70">{showThinking ? "Hide" : "Show"}</span>
+                            </button>
+                            {showThinking && (
+                                <pre className="whitespace-pre-wrap font-mono text-xs leading-5 mt-1">
+                          {thinkingText}
+                        </pre>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {isBusy && (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -224,7 +277,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     </div>
                 )}
             </div>
-
             {/* Composer */}
             <div className="border-t border-gray-200 p-3">
                 <div
@@ -250,39 +302,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Press send</p>
-            </div>
-        </div>
-    );
-}
-
-function Bubble({role, content}: { role: "user" | "assistant"; content: string }) {
-    const isUser = role === "user";
-    return (
-        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-            <div className={`flex items-start gap-3 max-w-[80%]`}>
-                {!isUser && (
-                    <div className="shrink-0 mt-1 size-6 flex items-center justify-center rounded-full bg-blue-500 text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 9h6v6H9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M6.05 17.95l-1.414 1.414M17.95 17.95l1.414 1.414M6.05 6.05L4.636 4.636" />
-                        </svg>
-                    </div>
-                )}
-                <div
-                    className={[
-                        "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                        isUser
-                            ? "bg-gray-500 text-white rounded-br-sm"
-                            : "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap bg-blue-500 text-white rounded-br-sm",
-                    ].join(" ")}
-                >
-                    {content || <span className="opacity-0">…</span>}
-                </div>
-                {isUser && <div className="shrink-0 mt-1 size-6 flex items-center justify-center rounded-full bg-gray-300/80 text-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A9.969 9.969 0 0112 15c2.21 0 4.236.72 5.879 1.928M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </div>}
             </div>
         </div>
     );
