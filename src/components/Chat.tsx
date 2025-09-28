@@ -7,18 +7,19 @@ import {
     getUserThreads,
     type UserConversationThreadsResponse
 } from "../lib/conversationMessagesResponse";
+import {useAppBusy} from "../context/AppBusyContext.tsx";
 
 type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads, setIsChatBotResponding}: {
+export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
     apiUrl: string,
     threadId: string | null,
     updateThreadId: (id: string) => void,
     setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void,
-    setIsChatBotResponding: (value: boolean) => void,
 }) {
     const location = useLocation();
     const navigate = useNavigate();
+    const { setBusy } = useAppBusy();
 
     useEffect(() => {
         if (!getToken()) {
@@ -139,7 +140,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
         setLoading(true);
         try {
-            setIsChatBotResponding(true);
+            setBusy(true);
             let response = await sendMsg(text);
             updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
@@ -182,7 +183,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         } catch (e) {
             handleErrorForInvokingChatBotApi(asstId);
         } finally {
-            setIsChatBotResponding(false);
+            setBusy(false);
             setLoading(false);
             scrollToBottom();
         }

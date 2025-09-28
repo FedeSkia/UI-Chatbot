@@ -2,20 +2,19 @@ import { useMemo, useState } from "react";
 import type {UserConversationThread, UserConversationThreadsResponse} from "../lib/conversationMessagesResponse";
 import { orderConversationThreads } from "../lib/documents";
 import DeleteDocumentModal from "./DeleteDocumentModal";
+import {useAppBusy} from "../context/AppBusyContext.tsx";
 
 export default function Sidebar({
                                     activeThreadId,
                                     conversationThreads,
                                     onSelect,
                                     onNew,
-                                    isChatBotResponding,
                                     onDelete, // parent deletion callback
                                 }: {
     activeThreadId: string | null | undefined;
     conversationThreads: UserConversationThreadsResponse | null;
     onSelect: (id: string) => void;
     onNew: () => void;
-    isChatBotResponding: boolean;
     onDelete: (id: string) => void | Promise<void>;
 }) {
     const userConversationThreadsOrderedByDate = useMemo(
@@ -29,6 +28,7 @@ export default function Sidebar({
         useState<"confirm" | "deleting" | "success" | "error" | "Not found">("confirm");
     const [deleteConversationModalMsg, setDeleteConversationModalMsg] = useState<string | undefined>(undefined);
     const [selectedThreadToDelete, setSelectedThreadToDelete] = useState<string | null>(null);
+    const {isBusy} = useAppBusy();
 
     function openDeleteConfirm(threadId: string) {
         setSelectedThreadToDelete(threadId);
@@ -87,8 +87,8 @@ export default function Sidebar({
                         <div className="text-sm font-semibold">Conversations</div>
                     </div>
                     <button
-                        aria-busy={isChatBotResponding}
-                        disabled={isChatBotResponding}
+                        aria-busy={isBusy}
+                        disabled={isBusy}
                         onClick={onNew}
                         className="inline-flex items-center gap-2 rounded-md bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 active:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -107,10 +107,15 @@ export default function Sidebar({
                                 return (
                                     <li key={thread.thread_id}>
                                         <button
-                                            onClick={() => onSelect(thread.thread_id)}
+                                            disabled={isBusy}
+                                            onClick={() => {
+                                                if (isBusy) return;
+                                                onSelect(thread.thread_id);
+                                            }}
                                             className={[
                                                 "w-full group flex items-start gap-2 px-3 py-2 rounded-lg text-left border transition-colors",
                                                 active ? "bg-blue-50 border-blue-600" : "border-gray-200 hover:bg-gray-50",
+                                                isBusy ? "opacity-50 cursor-not-allowed" : ""
                                             ].join(" ")}
                                             tabIndex={0}
                                         >
@@ -126,16 +131,16 @@ export default function Sidebar({
 
                                             {/* Delete icon */}
                                             <span
-                                                aria-busy={isChatBotResponding}
+                                                aria-busy={isBusy}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (isChatBotResponding) {
+                                                    if (isBusy) {
                                                         return;
                                                     } else {
                                                         openDeleteConfirm(thread.thread_id);
                                                     }
                                                 }}
-                                                className={`ml-2 ${isChatBotResponding ? "text-gray-300 cursor-not-allowed" : "text-red-500 hover:text-red-700 cursor-pointer"}`}
+                                                className={`ml-2 ${isBusy ? "text-gray-300 cursor-not-allowed" : "text-red-500 hover:text-red-700 cursor-pointer"}`}
                                                 title="Delete conversation"
                                             >
                         <svg

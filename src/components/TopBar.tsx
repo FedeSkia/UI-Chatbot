@@ -1,5 +1,6 @@
-import {NavLink, useNavigate, useLocation} from "react-router-dom";
+import {NavLink, useLocation, useNavigate} from "react-router-dom";
 import {clearToken, decodeEmailFromJwt, getRefreshToken, setRefreshToken} from "../lib/auth";
+import {useAppBusy} from "../context/AppBusyContext.tsx";
 
 interface TopBarProps {
     onToggleMobileSidebar?: () => void
@@ -11,6 +12,7 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
     const location = useLocation();
     const email = decodeEmailFromJwt();
     const isDocumentsPage = location.pathname.startsWith("/documents");
+    const {isBusy} = useAppBusy();
 
     function handleLogout() {
         clearToken?.();
@@ -88,7 +90,10 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
                 </div>
 
                 {/* Tabs row (GitHub repo style) */}
-                <nav aria-label="Primary" className="-mb-px flex items-center gap-2 justify-center">
+                <nav
+                    aria-label="Primary"
+                    className={`-mb-px flex items-center gap-2 justify-center ${isBusy ? "pointer-events-none opacity-50" : ""}`}
+                >
                     <NavLink to="/chat" end className={tabClasses}>
                         {/* optional icon */}
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">

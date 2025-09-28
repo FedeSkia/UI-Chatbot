@@ -21,7 +21,6 @@ export function ChatPage() {
     const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
     const [activeThreadId, setActiveThreadId] = useState<string | null | undefined>(null);
     const navigate = useNavigate();
-    const [isChatBotResponding, setIsChatBotResponding] = useState(false);
     const {isMobileSidebarOpen, setIsMobileSidebarOpen} =
         useOutletContext<LayoutCtx>();
 
@@ -107,7 +106,6 @@ export function ChatPage() {
                         activeThreadId={activeThreadId}
                         onSelect={handleSelect}
                         onNew={handleNew}
-                        isChatBotResponding={isChatBotResponding}
                         onDelete={deleteConversationThread}
                     />
                 </div>
@@ -121,7 +119,6 @@ export function ChatPage() {
                             activeThreadId={activeThreadId}
                             onSelect={handleSelect}
                             onNew={handleNew}
-                            isChatBotResponding={isChatBotResponding}
                             onDelete={async (id) => {
                                 await deleteConversationThread(id);
                                 setConversationThreads((prev) =>
@@ -138,7 +135,6 @@ export function ChatPage() {
                         threadId={activeThreadId}
                         updateThreadId={handleSelect}
                         setConversationThreads={setConversationThreads}
-                        setIsChatBotResponding={setIsChatBotResponding}
                     />
                 </main>
             </div>

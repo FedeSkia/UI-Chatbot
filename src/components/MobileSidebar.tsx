@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse";
 import { orderConversationThreads } from "../lib/documents";
 import DeleteDocumentModal from "./DeleteDocumentModal";
+import {useAppBusy} from "../context/AppBusyContext.tsx";
 
 export default function MobileSidebar({
                                           isMobileSideBarOpen,
@@ -9,7 +10,6 @@ export default function MobileSidebar({
                                           activeThreadId,
                                           onSelect,
                                           onNew,
-                                          isChatBotResponding,
                                           setIsMobileSidebarOpen,
                                           onDelete, // ← add this prop
                                       }: {
@@ -18,7 +18,6 @@ export default function MobileSidebar({
     activeThreadId: string | null | undefined;
     onSelect: (threadId: string) => void;
     onNew: () => void;
-    isChatBotResponding: boolean;
     setIsMobileSidebarOpen: (value: (((prevState: boolean) => boolean) | boolean)) => void;
     onDelete: (id: string) => void | Promise<void>;
 }) {
@@ -43,6 +42,7 @@ export default function MobileSidebar({
         useState<"confirm" | "deleting" | "success" | "error" | "Not found">("confirm");
     const [modalMsg, setModalMsg] = useState<string | undefined>(undefined);
     const [selectedThreadToDelete, setSelectedThreadToDelete] = useState<string | null>(null);
+    const {isBusy} = useAppBusy();
 
     function openDeleteConfirm(threadId: string) {
         setSelectedThreadToDelete(threadId);
@@ -104,8 +104,8 @@ export default function MobileSidebar({
                             Close
                         </button>
                         <button
-                            aria-busy={isChatBotResponding}
-                            disabled={isChatBotResponding}
+                            aria-busy={isBusy}
+                            disabled={isBusy}
                             onClick={onNew}
                             className="inline-flex items-center gap-2 rounded-md bg-blue-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-blue-700 active:bg-blue-800 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -154,7 +154,7 @@ export default function MobileSidebar({
                                             <span
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if(isChatBotResponding) {
+                                                    if(isBusy) {
                                                         return;
                                                     } else {
                                                         openDeleteConfirm(thread.thread_id);
