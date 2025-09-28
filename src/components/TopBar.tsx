@@ -47,7 +47,7 @@ export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
                             <button
                                 type="button"
                                 onClick={onToggleMobileSidebar}
-                                className="md:hidden mr-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow hover:bg-gray-100 active:bg-gray-200"
+                                className={`${isBusy ? "pointer-events-none opacity-50" : ""} md:hidden mr-1 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs shadow hover:bg-gray-100 active:bg-gray-200"`}
                                 aria-label="Toggle sidebar"
                                 title="Toggle sidebar"
                             >

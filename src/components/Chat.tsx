@@ -20,6 +20,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     const location = useLocation();
     const navigate = useNavigate();
     const { setBusy } = useAppBusy();
+    const {isBusy} = useAppBusy();
 
     useEffect(() => {
         if (!getToken()) {
@@ -66,7 +67,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     const [messages, setMessages] = useState<Msg[]>([]);
 
     const [input, setInput] = useState("");
-    const [loading, setLoading] = useState(false);
     const viewportRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -77,7 +77,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         scrollToBottom();
     }, [messages]);
 
-    const canSend = useMemo(() => input.trim().length > 0 && !loading, [input, loading]);
+    const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
 
     async function sendMsg(text: string) {
         const headers: Record<string, string> = {
@@ -138,7 +138,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             {id: asstId, role: "assistant", content: ""}
         ]);
 
-        setLoading(true);
         try {
             setBusy(true);
             let response = await sendMsg(text);
@@ -184,7 +183,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             handleErrorForInvokingChatBotApi(asstId);
         } finally {
             setBusy(false);
-            setLoading(false);
             scrollToBottom();
         }
     };
@@ -216,7 +214,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     <Bubble key={m.id} role={m.role} content={m.content}/>
                 ))}
 
-                {loading && (
+                {isBusy && (
                     <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="relative flex size-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
