@@ -2,11 +2,10 @@ import {NavLink, useNavigate, useLocation} from "react-router-dom";
 import {clearToken, decodeEmailFromJwt, getRefreshToken, setRefreshToken} from "../lib/auth";
 
 interface TopBarProps {
-    onToggleMobileSidebar?: () => void,
-    isAppBusy?: boolean,
+    onToggleMobileSidebar?: () => void
 }
 
-export default function TopBar({onToggleMobileSidebar, isAppBusy}: TopBarProps) {
+export default function TopBar({onToggleMobileSidebar}: TopBarProps) {
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -89,7 +88,7 @@ export default function TopBar({onToggleMobileSidebar, isAppBusy}: TopBarProps) 
                 </div>
 
                 {/* Tabs row (GitHub repo style) */}
-                <nav aria-disabled={isAppBusy} aria-label="Primary" className="-mb-px flex items-center gap-2 justify-center">
+                <nav aria-label="Primary" className="-mb-px flex items-center gap-2 justify-center">
                     <NavLink to="/chat" end className={tabClasses}>
                         {/* optional icon */}
                         <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
