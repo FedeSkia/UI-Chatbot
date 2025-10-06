@@ -179,7 +179,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         setMessages(prev =>
             prev.map(m => {
                 if (m.id !== msgId) return m;
-                if (isUserMsg(m)) {
+                if (isAiMsg(m)) {
                     return {
                         ...m,
                         content: (m.content ?? "") + chunk,
@@ -236,7 +236,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
                 const chunk = decoder.decode(value, {stream: true});
                 bufferRef += chunk;
-                console.log(bufferRef);
                 // if the chunk starts a <think> block — show the "thinking" bubble right away
                 if (bufferRef.match(openingThinkTag)) {
                     isAiThinking = true;
