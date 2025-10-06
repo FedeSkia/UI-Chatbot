@@ -8,12 +8,18 @@ import {
     type UserConversationThreadsResponse
 } from "../lib/conversationMessagesResponse";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
-import Bubble from "./Bubble.tsx";
+import UserMsgComponent from "./UserMsgComponent.tsx";
+import AiMsgComponent from "./AiMsgComponent.tsx";
 
-type Msg = { id: string; role: "user" | "assistant" | "assistant-thinking"; content: string };
+
+export type UserMsg = { id: number; content: string; };
+export type AiMsg = { id: number; content: string; thinkingContent: string };
+
+type Msg = UserMsg | AiMsg;
 
 const openingThinkTag = /<think>/;
 const closingThinkTag = /<\/think>/;
+
 export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
     apiUrl: string,
     threadId: string | null,
@@ -54,16 +60,29 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     navigate("/login", {replace: true, state: {from: location}});
                     return;
                 }
-                // otherwise keep empty / show a system bubble
-                setMessages([{id: crypto.randomUUID(), role: "assistant", content: "Nessuna conversazione trovata."}]);
                 return;
             }
-            const mapped: Msg[] = res.messages.map((m) => ({
-                id: crypto.randomUUID(),
-                role: m.type === "human" ? "user" : "assistant",
-                content: m.content ?? ""
-            }));
-            setMessages(mapped);
+            const messages: Msg[] = [];
+            for (let i = 0; i < res.messages.length; i++) {
+                const msg = res.messages[i];
+                if (msg.type === "human") {
+                    messages.push({
+                        id: i,
+                        content: msg.content,
+                    });
+                } else {
+                    const msg = res.messages[i];
+                    const thinkingContent = keepOnlyThinking(msg.content);
+                    const finalMsgContent = removeThinking(msg.content);
+                    messages.push({
+                        id: i,
+                        content: finalMsgContent ?? "",
+                        thinkingContent: thinkingContent ?? ""
+                    });
+                }
+            }
+            setMessages(messages);
+
         })();
 
         return () => {
@@ -78,10 +97,26 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
     useEffect(() => {
         if (!threadId) {
-            setMessages([]);
+            setMessages([])
             setInput("");
         }
     }, [threadId]);
+
+    function isUserMsg(m: Msg): m is UserMsg {
+        return !isAiMsg(m);
+    }
+    function isAiMsg(m: Msg): m is AiMsg {
+        return "thinkingContent" in m;
+    }
+
+    function keepOnlyThinking(text: string): string {
+        const matches = text.matchAll(/<think>([\s\S]*?)<\/think>/g);
+        return Array.from(matches, m => m[1].trim()).join("\n\n");
+    }
+
+    function removeThinking(text: string): string {
+        return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    }
 
     async function sendMsg(text: string) {
         const headers: Record<string, string> = {
@@ -107,20 +142,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         }
     }
 
-    function handleErrorForInvokingChatBotApi(asstId: `${string}-${string}-${string}-${string}-${string}`) {
-        setMessages((m) =>
-            m.map((msg) =>
-                msg.id === asstId
-                    ? {
-                        ...msg,
-                        content:
-                            (msg.content || "") +
-                            "\n\n⚠️ Errore durante lo streaming della risposta. Controlla la console.",
-                    }
-                    : msg
-            )
-        );
-    }
 
     function goToLogin() {
         setRefreshToken("");
@@ -139,11 +160,33 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         return response;
     }
 
-    function addChunkToCorrectMsg(msgId: string, chunk: string) {
-        setMessages((prevMessages) =>
-            prevMessages.map((msg) =>
-                msg.id === msgId ? { ...msg, content: msg.content + chunk } : msg
-            )
+    function addChunkToThinkingMsg(msgId: number, chunk: string) {
+        setMessages(prev =>
+            prev.map(m => {
+                if (m.id !== msgId) return m;
+                if (isAiMsg(m)) {
+                    return {
+                        ...m,
+                        thinkingContent: (m.thinkingContent ?? "") + chunk,
+                    };
+                }
+                return m;
+            })
+        );
+    }
+
+    function addChunkToFinalMsg(msgId: number, chunk: string) {
+        setMessages(prev =>
+            prev.map(m => {
+                if (m.id !== msgId) return m;
+                if (isUserMsg(m)) {
+                    return {
+                        ...m,
+                        content: (m.content ?? "") + chunk,
+                    };
+                }
+                return m;
+            })
         );
     }
 
@@ -158,14 +201,17 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             return;
         }
 
-        const userId = crypto.randomUUID();
-        const asstId = crypto.randomUUID();
-        const asstThinkingId = crypto.randomUUID();
+        const newUsrMsgId = messages.length + 1;
+        // setUserMessages((m) => {
+        //     const userMsg = {id: newUsrMsgId, content: text};
+        //     return [...m, userMsg];
+        // });
+
+        const newAiMsgId = newUsrMsgId + 1;
         setMessages((m) => {
-            const userMsg = {id: userId, role: "user" as const, content: text};
-            const asstMsg = {id: asstId, role: "assistant" as const, content: ""};
-            const asstThinkingMsg = {id: asstThinkingId, role: "assistant-thinking" as const, content: ""};
-            return [...m, userMsg, asstMsg, asstThinkingMsg];
+            const userMsg = {id: newUsrMsgId, content: text};
+            const aiMsg = {id: newAiMsgId, content: "", thinkingContent: ""};
+            return [...m, userMsg, aiMsg];
         });
 
         try {
@@ -192,7 +238,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                 bufferRef += chunk;
                 console.log(bufferRef);
                 // if the chunk starts a <think> block — show the "thinking" bubble right away
-                if(bufferRef.match(openingThinkTag)) {
+                if (bufferRef.match(openingThinkTag)) {
                     isAiThinking = true;
                     bufferRef = "";
                 } else if (bufferRef.match(closingThinkTag)) {
@@ -201,9 +247,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                 }
 
                 if (isAiThinking) {
-                    addChunkToCorrectMsg(asstThinkingId, chunk);
+                    addChunkToThinkingMsg(newAiMsgId, chunk);
                 } else {  // update assistant visible text
-                    addChunkToCorrectMsg(asstId, chunk);
+                    addChunkToFinalMsg(newAiMsgId, chunk);
                 }
 
             }
@@ -218,7 +264,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             }
 
         } catch (e) {
-            handleErrorForInvokingChatBotApi(asstId);
             console.error(e);
         } finally {
             setBusy(false);
@@ -232,6 +277,22 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             handleSend();
         }
     };
+
+    function renderMessages() {
+
+        return (
+            <div>
+                {messages.map((msg, idx) =>
+                    isUserMsg(msg) ? (
+                        <UserMsgComponent key={idx} userMsg={msg}/>
+                    ) : (
+                        <AiMsgComponent key={idx} aiMsg={msg}/>
+                    )
+                )}
+            </div>
+        );
+
+    }
 
     return (
         <div
@@ -251,9 +312,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             {/* Messages */}
             <div ref={viewportRef}
                  className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
-                {messages.map((m) => (
-                    <Bubble key={m.id} role={m.role} content={m.content} />
-                ))}
+                {renderMessages()}
             </div>
             {/* Composer */}
             <div className="border-t border-gray-200 p-3">
