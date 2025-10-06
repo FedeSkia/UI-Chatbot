@@ -10,8 +10,10 @@ import {
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 import Bubble from "./Bubble.tsx";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string };
+type Msg = { id: string; role: "user" | "assistant" | "assistant-thinking"; content: string };
 
+const openingThinkTag = /<think>/;
+const closingThinkTag = /<\/think>/;
 export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
     apiUrl: string,
     threadId: string | null,
@@ -21,11 +23,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     const location = useLocation();
     const navigate = useNavigate();
 
-    const [thinkingText, setThinkingText] = useState("");
-    const [showThinking, setShowThinking] = useState(false);
-    const bufferRef = useRef("");
     const [messages, setMessages] = useState<Msg[]>([]);
     const [input, setInput] = useState("");
+
     const viewportRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
@@ -122,6 +122,31 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         );
     }
 
+    function goToLogin() {
+        setRefreshToken("");
+        setToken("")
+        navigate("/login", {replace: true, state: {from: location}});
+        return;
+    }
+
+    async function tryAgain(response: Response, text: string) {
+        const refreshResult = await refreshToken();
+        if (refreshResult.ok) {
+            response = await sendMsg(text);
+        } else {
+            goToLogin();
+        }
+        return response;
+    }
+
+    function addChunkToCorrectMsg(msgId: string, chunk: string) {
+        setMessages((prevMessages) =>
+            prevMessages.map((msg) =>
+                msg.id === msgId ? { ...msg, content: msg.content + chunk } : msg
+            )
+        );
+    }
+
     const handleSend = async () => {
         const text = input.trim();
         setInput("") //reset the box with the user input
@@ -133,16 +158,14 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             return;
         }
 
-        // push user + placeholder
         const userId = crypto.randomUUID();
         const asstId = crypto.randomUUID();
-        let asstIndex = -1;
+        const asstThinkingId = crypto.randomUUID();
         setMessages((m) => {
-            const userMsg = { id: userId, role: "user" as const, content: text };
-            const asstMsg = { id: asstId, role: "assistant" as const, content: "" };
-            const next = [...m, userMsg, asstMsg];
-            asstIndex = next.length - 1;
-            return next;
+            const userMsg = {id: userId, role: "user" as const, content: text};
+            const asstMsg = {id: asstId, role: "assistant" as const, content: ""};
+            const asstThinkingMsg = {id: asstThinkingId, role: "assistant-thinking" as const, content: ""};
+            return [...m, userMsg, asstMsg, asstThinkingMsg];
         });
 
         try {
@@ -150,57 +173,39 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             let response = await sendMsg(text);
             updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
-                const refreshResult = await refreshToken();
-                if (refreshResult.ok) {
-                    response = await sendMsg(text);
-                } else {
-                    setRefreshToken("");
-                    setToken("")
-                    navigate("/login", {replace: true, state: {from: location}});
-                    return;
-                }
+                response = await tryAgain(response, text);
             }
 
-            if (!response.ok) {
+            if (!response.ok || !response.body) {
                 throw new Error(`Request failed: ${response.status}`);
             }
-            if (!response.body) throw new Error("No response body");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
+            let bufferRef = "";
+            let isAiThinking = false;
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
 
                 const chunk = decoder.decode(value, {stream: true});
-
-                // 1) accumulate everything in a buffer so regex can match across chunk boundaries
-                bufferRef.current += chunk;
-
-                // 2) extract all complete <think>...</think> blocks (non-greedy)
-                const thinkRe = /<think>([\s\S]*?)<\/think>/g;
-                let match: RegExpExecArray | null;
-                let totalThinkAppended = "";
-
-                while ((match = thinkRe.exec(bufferRef.current)) !== null) {
-                    totalThinkAppended += match[1]; // capture inside the tags
+                bufferRef += chunk;
+                console.log(bufferRef);
+                // if the chunk starts a <think> block — show the "thinking" bubble right away
+                if(bufferRef.match(openingThinkTag)) {
+                    isAiThinking = true;
+                    bufferRef = "";
+                } else if (bufferRef.match(closingThinkTag)) {
+                    isAiThinking = false;
+                    bufferRef = "";
                 }
 
-                if (totalThinkAppended) {
-                    setThinkingText(prev => prev + totalThinkAppended);
+                if (isAiThinking) {
+                    addChunkToCorrectMsg(asstThinkingId, chunk);
+                } else {  // update assistant visible text
+                    addChunkToCorrectMsg(asstId, chunk);
                 }
 
-                // 3) visible text = full buffer with all <think> blocks removed
-                const visible = bufferRef.current.replace(thinkRe, "");
-
-                // 4) update the assistant placeholder message with only the visible text
-                setMessages((prev) => {
-                    const next = prev.slice();
-                    if (asstIndex >= 0 && asstIndex < next.length) {
-                        next[asstIndex] = { ...next[asstIndex], content: visible };
-                    }
-                    return next;
-                });
             }
             if (!threadId) {
                 // refresh the sidebar list after the first message created a new thread
@@ -214,6 +219,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
         } catch (e) {
             handleErrorForInvokingChatBotApi(asstId);
+            console.error(e);
         } finally {
             setBusy(false);
             scrollToBottom();
@@ -243,39 +249,11 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Messages */}
-            <div ref={viewportRef} className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
+            <div ref={viewportRef}
+                 className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
                 {messages.map((m) => (
                     <Bubble key={m.id} role={m.role} content={m.content} />
                 ))}
-                {Boolean(thinkingText) && (
-                    <div className="flex justify-start">
-                        <div className="max-w-[80%] rounded-2xl px-3 py-2 text-sm bg-amber-50 border border-amber-200 text-amber-900">
-                            <button
-                                type="button"
-                                onClick={() => setShowThinking((v) => !v)}
-                                className="mb-1 inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs bg-amber-100 hover:bg-amber-200"
-                            >
-                                <span>🧠 Thinking</span>
-                                <span className="opacity-70">{showThinking ? "Hide" : "Show"}</span>
-                            </button>
-                            {showThinking && (
-                                <pre className="whitespace-pre-wrap font-mono text-xs leading-5 mt-1">
-                          {thinkingText}
-                        </pre>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {isBusy && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className="relative flex size-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
-              <span className="relative inline-flex rounded-full size-2"></span>
-            </span>
-                        Replying…
-                    </div>
-                )}
             </div>
             {/* Composer */}
             <div className="border-t border-gray-200 p-3">
