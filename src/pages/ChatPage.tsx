@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import Chat from "../components/Chat";
-import {useNavigate, useOutletContext} from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import {
     deleteThread,
     getUserThreads,
@@ -12,38 +12,42 @@ import MobileSidebar from "../components/MobileSidebar.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
-type LayoutCtx = {
-    isMobileSidebarOpen: boolean;
-    setIsMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-};
-
-export function ChatPage() {
+export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
+    isMobileSidebarOpen: boolean,
+    setIsMobileSidebarOpen: any
+}) {
     const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
     const [activeThreadId, setActiveThreadId] = useState<string | null | undefined>(null);
     const navigate = useNavigate();
-    const {isMobileSidebarOpen, setIsMobileSidebarOpen} =
-        useOutletContext<LayoutCtx>();
 
-    async function retrieveAndSetConversations() {
+    const retrieveAndSetConversations = useCallback(async (): Promise<UserConversationThreadsResponse | undefined> => {
         const res = await getUserThreads();
         if (!res.ok && res.error === "Unauthenticated") {
             navigate("/login", {replace: true});
             return;
         }
-        setConversationThreads(res);
-        if (res.threads && res.threads.length > 0) {
-            const newActiveThreadId = res.threads.find(value => value.has_msg)?.thread_id;
-            setActiveThreadId(newActiveThreadId);
-        } else {
-            setActiveThreadId(null);
-        }
-    }
+        return res;
+    }, [navigate]);
+
+    useEffect(() => {
+        console.log('ChatPage mounted');
+        return () => console.log('ChatPage unmounted');
+    }, []);
 
     useEffect(() => {
         (async () => {
-            await retrieveAndSetConversations();
+            const response = await retrieveAndSetConversations();
+            if(response) {
+                setConversationThreads(response);
+                if (response.threads && response.threads.length > 0) {
+                    const newActiveThreadId = response.threads.find(value => value.has_msg)?.thread_id;
+                    setActiveThreadId(newActiveThreadId);
+                } else {
+                    setActiveThreadId(null);
+                }
+            }
         })();
-    }, [navigate]);
+    }, [retrieveAndSetConversations]);
 
     function addDummyThreadToConversations(tempId: string, now: string, prev: UserConversationThreadsResponse | null) {
         const newThread: UserConversationThread = {
@@ -91,7 +95,10 @@ export function ChatPage() {
     async function deleteConversationThread(threadId: string) {
         const resp = await deleteThread(threadId);
         if (resp.ok) {
-            await retrieveAndSetConversations();
+            const conversations = await retrieveAndSetConversations();
+            if(conversations) {
+                setConversationThreads(conversations);
+            }
         }
     }
 
