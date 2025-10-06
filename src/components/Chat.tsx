@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {getToken, setRefreshToken, setToken} from "../lib/auth";
 import {useLocation, useNavigate} from "react-router-dom";
 import {refreshToken} from "../lib/refreshToken";
@@ -10,6 +10,7 @@ import {
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 import UserMsgComponent from "./UserMsgComponent.tsx";
 import AiMsgComponent from "./AiMsgComponent.tsx";
+import AiLastMsgComponent from "./AiLastMsgComponent.tsx";
 
 
 export type UserMsg = { id: number; content: string; };
@@ -43,6 +44,37 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
 
     const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
 
+    const [showLastMsgThinking, setShowLastMsgThinking] = useState<boolean>(true);
+    const [currentAiMsg, setCurrentAiMsg] = useState<AiMsg | null>(null);
+    const retrieveMsgsFromApi = useCallback(async (): Promise<Msg[] | undefined> => {
+        if (!threadId) return;
+        const res = await getConversationData(threadId);
+
+        if (!res.ok) {
+            if (res.error === "Unauthenticated") {
+                navigate("/login", { replace: true, state: { from: location } });
+            }
+            return;
+        }
+
+        const messages: Msg[] = [];
+        for (let i = 0; i < res.messages.length; i++) {
+            const m = res.messages[i];
+            if (m.type === "human") {
+                messages.push({ id: i, content: m.content });
+            } else {
+                const thinkingContent = keepOnlyThinking(m.content);
+                const finalMsgContent = removeThinking(m.content);
+                messages.push({
+                    id: i,
+                    content: finalMsgContent ?? "",
+                    thinkingContent: thinkingContent ?? "",
+                });
+            }
+        }
+        return messages;
+    }, [threadId, navigate, location]);
+
     useEffect(() => {
         if (!getToken()) {
             navigate("/login", {replace: true, state: {from: location}});
@@ -50,46 +82,13 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     }, [location, navigate]);
 
     useEffect(() => {
-        let cancelled = false;
         (async () => {
-            if (!threadId) return;
-            const res = await getConversationData(threadId);
-            if (cancelled) return;
-            if (!res.ok) {
-                if (res.error === "Unauthenticated") {
-                    navigate("/login", {replace: true, state: {from: location}});
-                    return;
-                }
-                return;
-            }
-            const messages: Msg[] = [];
-            for (let i = 0; i < res.messages.length; i++) {
-                const msg = res.messages[i];
-                if (msg.type === "human") {
-                    messages.push({
-                        id: i,
-                        content: msg.content,
-                    });
-                } else {
-                    const msg = res.messages[i];
-                    const thinkingContent = keepOnlyThinking(msg.content);
-                    const finalMsgContent = removeThinking(msg.content);
-                    messages.push({
-                        id: i,
-                        content: finalMsgContent ?? "",
-                        thinkingContent: thinkingContent ?? ""
-                    });
-                }
-            }
-            setMessages(messages);
-
+            const messagesFromApi = await retrieveMsgsFromApi();
+            if (!messagesFromApi) return;
+            setMessages(messagesFromApi);
         })();
 
-        return () => {
-            cancelled = true;
-        };
-
-    }, [threadId, navigate, location]);
+    }, [navigate, location, retrieveMsgsFromApi]);
 
     useEffect(() => {
         scrollToBottom();
@@ -105,6 +104,7 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     function isUserMsg(m: Msg): m is UserMsg {
         return !isAiMsg(m);
     }
+
     function isAiMsg(m: Msg): m is AiMsg {
         return "thinkingContent" in m;
     }
@@ -160,34 +160,24 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         return response;
     }
 
-    function addChunkToThinkingMsg(msgId: number, chunk: string) {
-        setMessages(prev =>
-            prev.map(m => {
-                if (m.id !== msgId) return m;
-                if (isAiMsg(m)) {
-                    return {
-                        ...m,
-                        thinkingContent: (m.thinkingContent ?? "") + chunk,
-                    };
-                }
-                return m;
-            })
-        );
+    function addChunkToThinkingMsg(chunk: string) {
+        setCurrentAiMsg(prev => {
+            return {
+                id: prev ? prev.id : messages.length + 1,
+                content: prev ? prev.content : "",
+                thinkingContent: prev ? prev.thinkingContent + chunk : chunk
+            }
+        });
     }
 
-    function addChunkToFinalMsg(msgId: number, chunk: string) {
-        setMessages(prev =>
-            prev.map(m => {
-                if (m.id !== msgId) return m;
-                if (isAiMsg(m)) {
-                    return {
-                        ...m,
-                        content: (m.content ?? "") + chunk,
-                    };
-                }
-                return m;
-            })
-        );
+    function addChunkToFinalMsg(chunk: string) {
+        setCurrentAiMsg(prev => {
+            return {
+                id: prev ? prev.id : messages.length + 1,
+                content: prev ? prev.content + chunk : "",
+                thinkingContent: prev ? prev.thinkingContent : ""
+            }
+        });
     }
 
     const handleSend = async () => {
@@ -202,16 +192,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         }
 
         const newUsrMsgId = messages.length + 1;
-        // setUserMessages((m) => {
-        //     const userMsg = {id: newUsrMsgId, content: text};
-        //     return [...m, userMsg];
-        // });
-
-        const newAiMsgId = newUsrMsgId + 1;
         setMessages((m) => {
             const userMsg = {id: newUsrMsgId, content: text};
-            const aiMsg = {id: newAiMsgId, content: "", thinkingContent: ""};
-            return [...m, userMsg, aiMsg];
+            return [...m, userMsg];
         });
 
         try {
@@ -246,9 +229,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                 }
 
                 if (isAiThinking) {
-                    addChunkToThinkingMsg(newAiMsgId, chunk);
+                    addChunkToThinkingMsg(chunk);
                 } else {  // update assistant visible text
-                    addChunkToFinalMsg(newAiMsgId, chunk);
+                    addChunkToFinalMsg(chunk);
                 }
 
             }
@@ -265,8 +248,15 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         } catch (e) {
             console.error(e);
         } finally {
-            setBusy(false);
-            scrollToBottom();
+            retrieveMsgsFromApi()
+                .then(msgs => {
+                    if (msgs) {
+                        setMessages(msgs);
+                    }
+                    setCurrentAiMsg(null);
+                    scrollToBottom();
+                    setBusy(false);
+                });
         }
     };
 
@@ -278,19 +268,28 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     };
 
     function renderMessages() {
-
+        const renderedMsgs = [];
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            if (isUserMsg(msg)) {
+                renderedMsgs.push(<UserMsgComponent key={i} userMsg={msg}/>);
+            } else {
+                renderedMsgs.push(<AiMsgComponent key={i} aiMsg={msg}/>);
+            }
+        }
         return (
-            <div>
-                {messages.map((msg, idx) =>
-                    isUserMsg(msg) ? (
-                        <UserMsgComponent key={idx} userMsg={msg}/>
-                    ) : (
-                        <AiMsgComponent key={idx} aiMsg={msg}/>
-                    )
-                )}
+            <div ref={viewportRef}
+                 className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
+                {renderedMsgs}
             </div>
         );
+    }
 
+    function renderLastAiMsg() {
+        if (currentAiMsg) {
+            return <AiLastMsgComponent aiMsg={currentAiMsg} showThinking={showLastMsgThinking}
+                                       setShowThinking={setShowLastMsgThinking}/>
+        }
     }
 
     return (
@@ -309,10 +308,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Messages */}
-            <div ref={viewportRef}
-                 className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
-                {renderMessages()}
-            </div>
+            {renderMessages()}
+            {/* Last AI Message */}
+            {renderLastAiMsg()}
             {/* Composer */}
             <div className="border-t border-gray-200 p-3">
                 <div
