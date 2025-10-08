@@ -36,10 +36,10 @@ export default function LoginPage() {
 
     async function handleRegistration(e: FormEvent) {
         e.preventDefault();
-        setLoginError(null);
+        setRegistrationLoginError(null);
         setLoading(true);
         if (regPwd !== regPwdConfirm) {
-            setLoginError("Passwords do not match.");
+            setRegistrationLoginError("Passwords do not match.");
             return;
         }
 
