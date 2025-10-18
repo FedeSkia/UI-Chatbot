@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import type { UserConversationThreadsResponse } from "../lib/conversationMessagesResponse";
-import { orderConversationThreads } from "../lib/documents";
+import { useEffect, useState } from "react";
+import type {UserConversationThread} from "../lib/conversationMessagesResponse";
 import DeleteDocumentModal from "./DeleteDocumentModal";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 
@@ -14,7 +13,7 @@ export default function MobileSidebar({
                                           onDelete, // ← add this prop
                                       }: {
     isMobileSideBarOpen: boolean;
-    conversationThreads: UserConversationThreadsResponse | null;
+    conversationThreads: UserConversationThread[];
     activeThreadId: string | null | undefined;
     onSelect: (threadId: string) => void;
     onNew: () => void;
@@ -30,11 +29,6 @@ export default function MobileSidebar({
             document.body.style.overflow = prev;
         };
     }, [isMobileSideBarOpen]);
-
-    const userConversationThreadsOrderedByDate = useMemo(
-        orderConversationThreads(conversationThreads),
-        [conversationThreads]
-    );
 
     // Modal state
     const [modalOpen, setModalOpen] = useState(false);
@@ -116,13 +110,13 @@ export default function MobileSidebar({
 
                 {/* List */}
                 <div className="p-2 overflow-y-auto h-[calc(100%-49px)] divide-y divide-gray-200">
-                    {userConversationThreadsOrderedByDate.length === 0 ? (
+                    {conversationThreads.length === 0 ? (
                         <div className="text-xs text-gray-500 px-2 py-3">
                             No conversation yet. Create one
                         </div>
                     ) : (
                         <ul className="space-y-2">
-                            {userConversationThreadsOrderedByDate.map((thread) => {
+                            {conversationThreads.map((thread) => {
                                 const active = thread.thread_id === activeThreadId;
                                 return (
                                     <li key={thread.thread_id}>

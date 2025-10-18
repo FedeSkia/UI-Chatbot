@@ -4,8 +4,7 @@ import {useLocation, useNavigate} from "react-router-dom";
 import {refreshToken} from "../lib/refreshToken";
 import {
     getConversationData,
-    getUserThreads,
-    type UserConversationThreadsResponse
+    getUserThreads, type UserConversationThread
 } from "../lib/conversationMessagesResponse";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 import UserMsgComponent from "./UserMsgComponent.tsx";
@@ -21,11 +20,11 @@ type Msg = UserMsg | AiMsg;
 const openingThinkTag = /<think>/;
 const closingThinkTag = /<\/think>/;
 
-export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
+export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConversationThreads}: {
     apiUrl: string,
     threadId: string | null,
-    updateThreadId: (id: string) => void,
-    setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void,
+    updateCurrentThreadId: (id: string) => void,
+    setConversationThreads: (value: (((prevState: (UserConversationThread[])) => (UserConversationThread[])) | UserConversationThread[])) => void,
 }) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -119,29 +118,28 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     }
 
     async function sendMsg(text: string) {
-        const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-            accept: "application/json",
-            Authorization: `Bearer ${getToken() || ""}`,
-            ...(threadId ? {"X-Thread-Id": threadId} : {}), // only if present
-        };
+        let headers: Record<string, string>;
+        if(!threadId || threadId === "tmp") { //do not send it
+            headers = {
+                "Content-Type": "application/json",
+                accept: "application/json",
+                Authorization: `Bearer ${getToken() || ""}`
+            };
+        } else {
+            headers = {
+                "Content-Type": "application/json",
+                accept: "application/json",
+                Authorization: `Bearer ${getToken() || ""}`,
+                'X-Thread-Id': threadId,
+            };
+        }
+
         return await fetch(`${apiUrl}/api/chat/invoke`, {
             method: "POST",
             headers,
             body: JSON.stringify({content: text}),
         });
     }
-
-    function updateConversationThreadIdFromApi(response: Response) {
-        // If this is a brand-new conversation, capture the thread id from response headers right away
-        if (!threadId) {
-            const newThreadId = response.headers.get("X-Thread-Id");
-            if (newThreadId) {
-                updateThreadId(newThreadId);
-            }
-        }
-    }
-
 
     function goToLogin() {
         setRefreshToken("");
@@ -200,7 +198,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         try {
             setBusy(true);
             let response = await sendMsg(text);
-            updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
                 response = await tryAgain(response, text);
             }
@@ -235,19 +232,22 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                 }
 
             }
-            if (!threadId) {
-                // refresh the sidebar list after the first message created a new thread
-                const res = await getUserThreads();
-                if (!res.ok && res.error === "Unauthenticated") {
-                    navigate("/login", {replace: true});
-                    return;
-                }
-                setConversationThreads?.(res);
-            }
+
 
         } catch (e) {
             console.error(e);
         } finally {
+            if (!threadId || threadId === "tmp") {
+                // refresh the sidebar list after the first message created a new thread
+                getUserThreads().then(res => {
+                    if (!res.ok && res.error === "Unauthenticated") {
+                        navigate("/login", {replace: true});
+                        return;
+                    }
+                    setConversationThreads(res.threads);
+                    updateCurrentThreadId(res.threads[0].thread_id)
+                });
+            }
             retrieveMsgsFromApi()
                 .then(msgs => {
                     if (msgs) {

@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
-import type {UserConversationThread, UserConversationThreadsResponse} from "../lib/conversationMessagesResponse";
-import { orderConversationThreads } from "../lib/documents";
+import { useState } from "react";
+import type {UserConversationThread} from "../lib/conversationMessagesResponse";
 import DeleteDocumentModal from "./DeleteDocumentModal";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 
@@ -12,15 +11,11 @@ export default function Sidebar({
                                     onDelete, // parent deletion callback
                                 }: {
     activeThreadId: string | null | undefined;
-    conversationThreads: UserConversationThreadsResponse | null;
+    conversationThreads: UserConversationThread[];
     onSelect: (id: string) => void;
     onNew: () => void;
     onDelete: (id: string) => void | Promise<void>;
 }) {
-    const userConversationThreadsOrderedByDate = useMemo(
-        orderConversationThreads(conversationThreads),
-        [conversationThreads]
-    );
 
     // Modal state
     const [modalOpen, setModalOpen] = useState(false);
@@ -46,6 +41,7 @@ export default function Sidebar({
             setModalMode("success");
             setDeleteConversationModalMsg("Conversation has been deleted.");
         } catch (e: any) {
+            console.error(e);
             setModalMode("error");
             setDeleteConversationModalMsg(e?.message || "Delete failed.");
         }
@@ -98,11 +94,11 @@ export default function Sidebar({
 
                 {/* List */}
                 <div className="p-2 overflow-y-auto divide-y divide-gray-200" tabIndex={0}>
-                    {userConversationThreadsOrderedByDate.length === 0 ? (
+                    {conversationThreads.length === 0 ? (
                         <div className="text-xs text-gray-500 px-2 py-3">No conversation yet. Create one</div>
                     ) : (
                         <ul className="space-y-2">
-                            {userConversationThreadsOrderedByDate.map((thread) => {
+                            {conversationThreads.map((thread) => {
                                 const active = thread.thread_id === activeThreadId;
                                 return (
                                     <li key={thread.thread_id}>
