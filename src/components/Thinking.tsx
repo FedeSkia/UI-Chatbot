@@ -1,5 +1,6 @@
-import type {AiMsg} from "./Chat.tsx";
+import type {AiMsg, ToolMsg} from "./Chat.tsx";
 import MsgBox from "./MsgBox.tsx";
+import {useEffect, useState} from "react";
 
 export function renderBotAvatar() {
     return <div
@@ -16,9 +17,43 @@ export function renderBotAvatar() {
     </div>;
 }
 
-export function renderThinking(aiMsg: AiMsg, setShowThinking: (value: (((prevState: boolean) => boolean) | boolean)) => void, showThinking: boolean) {
+export function RenderThinking(aiMsgs: AiMsg[], setShowThinking: (value: (((prevState: boolean) => boolean) | boolean)) => void, showThinking: boolean, toolMsg: ToolMsg[] | null) {
+    const [thinkingTxt, setThinkingTxt] = useState("");
+    useEffect(() => {
+        if (aiMsgs.length > 0) {
+            setThinkingTxt(groupAiMessages(aiMsgs));
+        }
+    }, [aiMsgs]); // empty deps => only runs once when component mounts
+
+
+
+    function formatToolMsg(): string {
+        if(toolMsg == null) {
+            return "";
+        }
+        const msgsAsMap = toolMsg.reduce((acc, {document_name, page_number}) => {
+            if (!acc.has(document_name)) {
+                acc.set(document_name, []);
+            }
+            acc.get(document_name)!.push(page_number);
+            return acc;
+        }, new Map<string, number[]>());
+
+        return "Found text matching in the following documents and pages: " + Array.from(msgsAsMap.entries())
+            .map(([name, pages]) =>
+                `- **${name}** → pages ${[...pages].sort((a, b) => a - b).join(", ")}`
+            )
+            .join("\n");
+    }
+
+    function groupAiMessages(messages: AiMsg[]) {
+        return messages.map(message => {
+            return message.thinkingContent;
+        }).join();
+    }
+
     return <>
-        {aiMsg.thinkingContent && (
+        {aiMsgs.length > 0 && (
             <div className="mt-2">
                 <button
                     type="button"
@@ -29,9 +64,14 @@ export function renderThinking(aiMsg: AiMsg, setShowThinking: (value: (((prevSta
                     <span>🧠 {showThinking ? "Hide reasoning" : "Show reasoning"}</span>
                 </button>
 
-                {showThinking && (
-                    <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
-                        <MsgBox html={aiMsg.thinkingContent}/>
+                {showThinking && thinkingTxt.length > 0 && (
+                    <div>
+                        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                            <MsgBox html={thinkingTxt}/>
+                        </div>
+                        {toolMsg != null && toolMsg.length > 0 ? <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2">
+                            <MsgBox html={formatToolMsg()}/>
+                        </div> : null}
                     </div>
                 )}
             </div>

@@ -1,10 +1,30 @@
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import MsgBox from "./MsgBox.tsx";
 import type {AiMsg} from "./Chat.tsx";
-import {renderBotAvatar, renderThinking} from "./Thinking.tsx";
+import {renderBotAvatar, RenderThinking} from "./Thinking.tsx";
 
-export default function AiMsgComponent({aiMsg}: { aiMsg: AiMsg }) {
+export default function AiMsgComponent({aiMsgs}: { aiMsgs: AiMsg[] }) {
     const [showThinking, setShowThinking] = useState(false);
+    const [aiText, setAiText] = useState("");
+
+    useEffect(() => {
+        console.log("AiMsgComponent");
+        setAiText(groupAiMessages(aiMsgs))
+    }, [aiMsgs])
+
+    function groupAiMessages(messages: AiMsg[]) {
+        return messages.map(message => {
+            return message.content;
+        }).join();
+    }
+
+    function renderAiResponseIfTextIsPresent() {
+        return <>
+            {aiText.length > 0 && (
+                <MsgBox html={groupAiMessages(aiMsgs)}/>
+            )}
+        </>;
+    }
 
     return (
         <div className="flex justify-start">
@@ -15,10 +35,10 @@ export default function AiMsgComponent({aiMsg}: { aiMsg: AiMsg }) {
 
                 <div className="rounded-2xl border border-blue-200 bg-blue-50 shadow-sm px-3 py-2 text-sm w-full">
                     {/* Visible AI answer */}
-                    <MsgBox html={aiMsg.content}/>
+                    {renderAiResponseIfTextIsPresent()}
 
                     {/* Optional thinking section INSIDE the same box */}
-                    {renderThinking(aiMsg, setShowThinking, showThinking)}
+                    {RenderThinking(aiMsgs, setShowThinking, showThinking, null)}
                 </div>
             </div>
         </div>

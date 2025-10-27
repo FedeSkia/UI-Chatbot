@@ -8,13 +8,13 @@ import {
 } from "../lib/conversationMessagesResponse";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
 import UserMsgComponent from "./UserMsgComponent.tsx";
-import AiMsgComponent from "./AiMsgComponent.tsx";
+import AiMsgsBelongingToSameRequestComponent from "./AiMsgComponent.tsx";
 import AiLastMsgComponent from "./AiLastMsgComponent.tsx";
 
 
-export type UserMsg = { id: number; content: string; };
-export type AiMsg = { id: number; content: string; thinkingContent: string };
-
+export type UserMsg = { id: number; content: string; interaction_id: string };
+export type AiMsg = { id: number; content: string; thinkingContent: string; interaction_id: string };
+export type ToolMsg = {page_content: string; page_number: number; document_name:string}
 type Msg = UserMsg | AiMsg;
 
 const openingThinkTag = /<think>/;
@@ -45,6 +45,8 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
 
     const [showLastMsgThinking, setShowLastMsgThinking] = useState<boolean>(true);
     const [currentAiMsg, setCurrentAiMsg] = useState<AiMsg | null>(null);
+    const [currentToolMsgs, setCurrentToolMsgs] = useState<ToolMsg[] | null>(null);
+
     const retrieveMsgsFromApi = useCallback(async (): Promise<Msg[] | undefined> => {
         if (!threadId) return;
         const res = await getConversationData(threadId);
@@ -60,7 +62,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
         for (let i = 0; i < res.messages.length; i++) {
             const m = res.messages[i];
             if (m.type === "human") {
-                messages.push({ id: i, content: m.content });
+                messages.push({ id: i, content: m.content, interaction_id: m.interaction_id });
             } else {
                 const thinkingContent = keepOnlyThinking(m.content);
                 const finalMsgContent = removeThinking(m.content);
@@ -68,6 +70,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                     id: i,
                     content: finalMsgContent ?? "",
                     thinkingContent: thinkingContent ?? "",
+                    interaction_id: m.interaction_id
                 });
             }
         }
@@ -163,7 +166,8 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
             return {
                 id: prev ? prev.id : messages.length + 1,
                 content: prev ? prev.content : "",
-                thinkingContent: prev ? prev.thinkingContent + chunk : chunk
+                thinkingContent: prev ? prev.thinkingContent + chunk : chunk,
+                interaction_id: prev ? prev.interaction_id : "",
             }
         });
     }
@@ -173,7 +177,8 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
             return {
                 id: prev ? prev.id : messages.length + 1,
                 content: prev ? prev.content + chunk : "",
-                thinkingContent: prev ? prev.thinkingContent : ""
+                thinkingContent: prev ? prev.thinkingContent : "",
+                interaction_id: prev ? prev.interaction_id : "",
             }
         });
     }
@@ -191,7 +196,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
 
         const newUsrMsgId = messages.length + 1;
         setMessages((m) => {
-            const userMsg = {id: newUsrMsgId, content: text};
+            const userMsg = {id: newUsrMsgId, content: text, interaction_id: "new_interaction_id"};
             return [...m, userMsg];
         });
 
@@ -215,6 +220,15 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                 if (done) break;
 
                 const chunk = decoder.decode(value, {stream: true});
+
+                if(chunk.includes("TOOL_MSG")) {
+                    try {
+                        const jsonToolMsg = chunk.replace("TOOL_MSG:", "");
+                        const toolMsg: ToolMsg[] = JSON.parse(jsonToolMsg);
+                        setCurrentToolMsgs(toolMsg);
+                        continue;
+                    } catch (e) { /* empty */ }
+                }
                 bufferRef += chunk;
                 // if the chunk starts a <think> block — show the "thinking" bubble right away
                 if (bufferRef.match(openingThinkTag)) {
@@ -254,6 +268,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                         setMessages(msgs);
                     }
                     setCurrentAiMsg(null);
+                    setCurrentToolMsgs(null);
                     scrollToBottom();
                     setBusy(false);
                 });
@@ -268,14 +283,33 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
     };
 
     function renderMessages() {
-        const renderedMsgs = [];
-        for (let i = 0; i < messages.length; i++) {
-            const msg = messages[i];
-            if (isUserMsg(msg)) {
-                renderedMsgs.push(<UserMsgComponent key={i} userMsg={msg}/>);
-            } else {
-                renderedMsgs.push(<AiMsgComponent key={i} aiMsg={msg}/>);
+        const messagesGroupedByInteractionId = messages.reduce<Record<string, Msg[]>>((acc, msg) => {
+            const key = msg.interaction_id;
+            if (!acc[key]) {
+                acc[key] = [];
             }
+            acc[key].push(msg);
+            return acc;
+        }, {});
+
+        const renderedMsgs = [];
+        for (const [interaction_id ,msgs] of Object.entries(messagesGroupedByInteractionId)) {
+            const aiMsgs: AiMsg[] = [];
+            for(let i = 0; i < msgs.length; i++) {
+                const msg = msgs[i];
+                if(isUserMsg(msg)) {
+                    renderedMsgs.push(<UserMsgComponent key={interaction_id} userMsg={msg}/>);
+                } else if (isAiMsg(msg)) {
+                    const aiMsg: AiMsg = msg;
+                    if (aiMsg.content.length > 0 || aiMsg.thinkingContent.length > 0) {
+                        aiMsgs.push(msg);
+                    }
+                }
+            }
+            if(aiMsgs.length > 0) {
+                renderedMsgs.push(<AiMsgsBelongingToSameRequestComponent key={renderedMsgs.length + 1} aiMsgs={aiMsgs}/>)
+            }
+
         }
         return (
             <div ref={viewportRef}
@@ -288,7 +322,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
     function renderLastAiMsg() {
         if (currentAiMsg) {
             return <AiLastMsgComponent aiMsg={currentAiMsg} showThinking={showLastMsgThinking}
-                                       setShowThinking={setShowLastMsgThinking}/>
+                                       setShowThinking={setShowLastMsgThinking} toolMsgs={currentToolMsgs}/>
         }
     }
 
