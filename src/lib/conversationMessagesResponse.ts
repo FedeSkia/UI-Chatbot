@@ -20,6 +20,8 @@ export type UserConversationThread = {
 export type ConversationMessage = {
     type: string;
     content: string;
+    interaction_id: string;
+    timestamp: Date;
 };
 
 export type ConversationMessagesResponse = {

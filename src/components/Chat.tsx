@@ -1,26 +1,81 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {getToken, setRefreshToken, setToken} from "../lib/auth";
 import {useLocation, useNavigate} from "react-router-dom";
 import {refreshToken} from "../lib/refreshToken";
 import {
     getConversationData,
-    getUserThreads,
-    type UserConversationThreadsResponse
+    getUserThreads, type UserConversationThread
 } from "../lib/conversationMessagesResponse";
 import {useAppBusy} from "../context/AppBusyContext.tsx";
+import UserMsgComponent from "./UserMsgComponent.tsx";
+import AiMsgsBelongingToSameRequestComponent from "./AiMsgComponent.tsx";
+import AiLastMsgComponent from "./AiLastMsgComponent.tsx";
 
-type Msg = { id: string; role: "user" | "assistant"; content: string };
 
-export default function Chat({apiUrl, threadId, updateThreadId, setConversationThreads}: {
+export type UserMsg = { id: number; content: string; interaction_id: string };
+export type AiMsg = { id: number; content: string; thinkingContent: string; interaction_id: string };
+export type ToolMsg = {page_content: string; page_number: number; document_name:string}
+type Msg = UserMsg | AiMsg;
+
+const openingThinkTag = /<think>/;
+const closingThinkTag = /<\/think>/;
+
+export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConversationThreads}: {
     apiUrl: string,
     threadId: string | null,
-    updateThreadId: (id: string) => void,
-    setConversationThreads?: (value: (((prevState: (UserConversationThreadsResponse | null)) => (UserConversationThreadsResponse | null)) | UserConversationThreadsResponse | null)) => void,
+    updateCurrentThreadId: (id: string) => void,
+    setConversationThreads: (value: (((prevState: (UserConversationThread[])) => (UserConversationThread[])) | UserConversationThread[])) => void,
 }) {
     const location = useLocation();
     const navigate = useNavigate();
-    const { setBusy } = useAppBusy();
+
+    const [messages, setMessages] = useState<Msg[]>([]);
+    const [input, setInput] = useState("");
+
+    const viewportRef = useRef<HTMLDivElement>(null);
+
+    const scrollToBottom = () => {
+        viewportRef.current?.scrollTo({top: viewportRef.current.scrollHeight, behavior: "smooth"});
+    };
+
+    const {setBusy} = useAppBusy();
     const {isBusy} = useAppBusy();
+
+    const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
+
+    const [showLastMsgThinking, setShowLastMsgThinking] = useState<boolean>(true);
+    const [currentAiMsg, setCurrentAiMsg] = useState<AiMsg | null>(null);
+    const [currentToolMsgs, setCurrentToolMsgs] = useState<ToolMsg[] | null>(null);
+
+    const retrieveMsgsFromApi = useCallback(async (): Promise<Msg[] | undefined> => {
+        if (!threadId) return;
+        const res = await getConversationData(threadId);
+
+        if (!res.ok) {
+            if (res.error === "Unauthenticated") {
+                navigate("/login", { replace: true, state: { from: location } });
+            }
+            return;
+        }
+
+        const messages: Msg[] = [];
+        for (let i = 0; i < res.messages.length; i++) {
+            const m = res.messages[i];
+            if (m.type === "human") {
+                messages.push({ id: i, content: m.content, interaction_id: m.interaction_id });
+            } else {
+                const thinkingContent = keepOnlyThinking(m.content);
+                const finalMsgContent = removeThinking(m.content);
+                messages.push({
+                    id: i,
+                    content: finalMsgContent ?? "",
+                    thinkingContent: thinkingContent ?? "",
+                    interaction_id: m.interaction_id
+                });
+            }
+        }
+        return messages;
+    }, [threadId, navigate, location]);
 
     useEffect(() => {
         if (!getToken()) {
@@ -29,63 +84,59 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
     }, [location, navigate]);
 
     useEffect(() => {
-        let cancelled = false;
         (async () => {
-            if (!threadId) return;
-            const res = await getConversationData(threadId);
-            if (cancelled) return;
-            if (!res.ok) {
-                if (res.error === "Unauthenticated") {
-                    navigate("/login", {replace: true, state: {from: location}});
-                    return;
-                }
-                // otherwise keep empty / show a system bubble
-                setMessages([{id: crypto.randomUUID(), role: "assistant", content: "Nessuna conversazione trovata."}]);
-                return;
-            }
-            const mapped: Msg[] = res.messages.map((m) => ({
-                id: crypto.randomUUID(),
-                role: m.type === "human" ? "user" : "assistant",
-                content: m.content ?? ""
-            }));
-            setMessages(mapped);
+            const messagesFromApi = await retrieveMsgsFromApi();
+            if (!messagesFromApi) return;
+            setMessages(messagesFromApi);
         })();
 
-        return () => {
-            cancelled = true;
-        };
-
-    }, [threadId, navigate, location]);
-
-    useEffect(() => {
-        if (!threadId) {
-            setMessages([]);
-            setInput("");
-        }
-    }, [threadId]);
-
-    const [messages, setMessages] = useState<Msg[]>([]);
-
-    const [input, setInput] = useState("");
-    const viewportRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        viewportRef.current?.scrollTo({top: viewportRef.current.scrollHeight, behavior: "smooth"});
-    };
+    }, [navigate, location, retrieveMsgsFromApi]);
 
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
-    const canSend = useMemo(() => input.trim().length > 0 && !isBusy, [input, isBusy]);
+    useEffect(() => {
+        if (!threadId) {
+            setMessages([])
+            setInput("");
+        }
+    }, [threadId]);
+
+    function isUserMsg(m: Msg): m is UserMsg {
+        return !isAiMsg(m);
+    }
+
+    function isAiMsg(m: Msg): m is AiMsg {
+        return "thinkingContent" in m;
+    }
+
+    function keepOnlyThinking(text: string): string {
+        const matches = text.matchAll(/<think>([\s\S]*?)<\/think>/g);
+        return Array.from(matches, m => m[1].trim()).join("\n\n");
+    }
+
+    function removeThinking(text: string): string {
+        return text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+    }
 
     async function sendMsg(text: string) {
-        const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-            accept: "application/json",
-            Authorization: `Bearer ${getToken() || ""}`,
-            ...(threadId ? { "X-Thread-Id": threadId } : {}), // only if present
-        };
+        let headers: Record<string, string>;
+        if(!threadId || threadId === "tmp") { //do not send it
+            headers = {
+                "Content-Type": "application/json",
+                accept: "application/json",
+                Authorization: `Bearer ${getToken() || ""}`
+            };
+        } else {
+            headers = {
+                "Content-Type": "application/json",
+                accept: "application/json",
+                Authorization: `Bearer ${getToken() || ""}`,
+                'X-Thread-Id': threadId,
+            };
+        }
+
         return await fetch(`${apiUrl}/api/chat/invoke`, {
             method: "POST",
             headers,
@@ -93,29 +144,43 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         });
     }
 
-    function updateConversationThreadIdFromApi(response: Response) {
-        // If this is a brand-new conversation, capture the thread id from response headers right away
-        if (!threadId) {
-            const newThreadId = response.headers.get("X-Thread-Id");
-            if (newThreadId) {
-                updateThreadId(newThreadId);
-            }
-        }
+    function goToLogin() {
+        setRefreshToken("");
+        setToken("")
+        navigate("/login", {replace: true, state: {from: location}});
+        return;
     }
 
-    function handleErrorForInvokingChatBotApi(asstId: `${string}-${string}-${string}-${string}-${string}`) {
-        setMessages((m) =>
-            m.map((msg) =>
-                msg.id === asstId
-                    ? {
-                        ...msg,
-                        content:
-                            (msg.content || "") +
-                            "\n\n⚠️ Errore durante lo streaming della risposta. Controlla la console.",
-                    }
-                    : msg
-            )
-        );
+    async function tryAgain(response: Response, text: string) {
+        const refreshResult = await refreshToken();
+        if (refreshResult.ok) {
+            response = await sendMsg(text);
+        } else {
+            goToLogin();
+        }
+        return response;
+    }
+
+    function addChunkToThinkingMsg(chunk: string) {
+        setCurrentAiMsg(prev => {
+            return {
+                id: prev ? prev.id : messages.length + 1,
+                content: prev ? prev.content : "",
+                thinkingContent: prev ? prev.thinkingContent + chunk : chunk,
+                interaction_id: prev ? prev.interaction_id : "",
+            }
+        });
+    }
+
+    function addChunkToFinalMsg(chunk: string) {
+        setCurrentAiMsg(prev => {
+            return {
+                id: prev ? prev.id : messages.length + 1,
+                content: prev ? prev.content + chunk : "",
+                thinkingContent: prev ? prev.thinkingContent : "",
+                interaction_id: prev ? prev.interaction_id : "",
+            }
+        });
     }
 
     const handleSend = async () => {
@@ -129,61 +194,84 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             return;
         }
 
-        // push user + placeholder
-        const userId = crypto.randomUUID();
-        const asstId = crypto.randomUUID();
-        setMessages((m) => [
-            ...m,
-            {id: userId, role: "user", content: text},
-            {id: asstId, role: "assistant", content: ""}
-        ]);
+        const newUsrMsgId = messages.length + 1;
+        setMessages((m) => {
+            const userMsg = {id: newUsrMsgId, content: text, interaction_id: "new_interaction_id"};
+            return [...m, userMsg];
+        });
 
         try {
             setBusy(true);
             let response = await sendMsg(text);
-            updateConversationThreadIdFromApi(response);
             if (response.status !== 200) {
-                const refreshResult = await refreshToken();
-                if (refreshResult.ok) {
-                    response = await sendMsg(text);
-                } else {
-                    setRefreshToken("");
-                    setToken("")
-                    navigate("/login", {replace: true, state: {from: location}});
-                    return;
-                }
+                response = await tryAgain(response, text);
             }
 
-            if (!response.ok) {
+            if (!response.ok || !response.body) {
                 throw new Error(`Request failed: ${response.status}`);
             }
-            if (!response.body) throw new Error("No response body");
 
             const reader = response.body.getReader();
             const decoder = new TextDecoder("utf-8");
+            let bufferRef = "";
+            let isAiThinking = false;
             while (true) {
                 const {value, done} = await reader.read();
                 if (done) break;
+
                 const chunk = decoder.decode(value, {stream: true});
-                setMessages((m) =>
-                    m.map((msg) => (msg.id === asstId ? {...msg, content: msg.content + chunk} : msg))
-                );
-            }
-            if (!threadId) {
-                // refresh the sidebar list after the first message created a new thread
-                const res = await getUserThreads();
-                if (!res.ok && res.error === "Unauthenticated") {
-                    navigate("/login", { replace: true });
-                    return;
+
+                if(chunk.includes("TOOL_MSG")) {
+                    try {
+                        const jsonToolMsg = chunk.replace("TOOL_MSG:", "");
+                        const toolMsg: ToolMsg[] = JSON.parse(jsonToolMsg);
+                        setCurrentToolMsgs(toolMsg);
+                        continue;
+                    } catch (e) { /* empty */ }
                 }
-                setConversationThreads?.(res);
+                bufferRef += chunk;
+                // if the chunk starts a <think> block — show the "thinking" bubble right away
+                if (bufferRef.match(openingThinkTag)) {
+                    isAiThinking = true;
+                    bufferRef = "";
+                } else if (bufferRef.match(closingThinkTag)) {
+                    isAiThinking = false;
+                    bufferRef = "";
+                }
+
+                if (isAiThinking) {
+                    addChunkToThinkingMsg(chunk);
+                } else {  // update assistant visible text
+                    addChunkToFinalMsg(chunk);
+                }
+
             }
 
+
         } catch (e) {
-            handleErrorForInvokingChatBotApi(asstId);
+            console.error(e);
         } finally {
-            setBusy(false);
-            scrollToBottom();
+            if (!threadId || threadId === "tmp") {
+                // refresh the sidebar list after the first message created a new thread
+                getUserThreads().then(res => {
+                    if (!res.ok && res.error === "Unauthenticated") {
+                        navigate("/login", {replace: true});
+                        return;
+                    }
+                    setConversationThreads(res.threads);
+                    updateCurrentThreadId(res.threads[0].thread_id)
+                });
+            }
+            retrieveMsgsFromApi()
+                .then(msgs => {
+                    if (msgs) {
+                        setMessages(msgs);
+                    }
+                    setCurrentAiMsg(null);
+                    setCurrentToolMsgs(null);
+                    scrollToBottom();
+                    setBusy(false);
+                });
         }
     };
 
@@ -194,8 +282,53 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
         }
     };
 
+    function renderMessages() {
+        const messagesGroupedByInteractionId = messages.reduce<Record<string, Msg[]>>((acc, msg) => {
+            const key = msg.interaction_id;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(msg);
+            return acc;
+        }, {});
+
+        const renderedMsgs = [];
+        for (const [interaction_id ,msgs] of Object.entries(messagesGroupedByInteractionId)) {
+            const aiMsgs: AiMsg[] = [];
+            for(let i = 0; i < msgs.length; i++) {
+                const msg = msgs[i];
+                if(isUserMsg(msg)) {
+                    renderedMsgs.push(<UserMsgComponent key={interaction_id} userMsg={msg}/>);
+                } else if (isAiMsg(msg)) {
+                    const aiMsg: AiMsg = msg;
+                    if (aiMsg.content.length > 0 || aiMsg.thinkingContent.length > 0) {
+                        aiMsgs.push(msg);
+                    }
+                }
+            }
+            if(aiMsgs.length > 0) {
+                renderedMsgs.push(<AiMsgsBelongingToSameRequestComponent key={renderedMsgs.length + 1} aiMsgs={aiMsgs}/>)
+            }
+
+        }
+        return (
+            <div ref={viewportRef}
+                 className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
+                {renderedMsgs}
+            </div>
+        );
+    }
+
+    function renderLastAiMsg() {
+        if (currentAiMsg) {
+            return <AiLastMsgComponent aiMsg={currentAiMsg} showThinking={showLastMsgThinking}
+                                       setShowThinking={setShowLastMsgThinking} toolMsgs={currentToolMsgs}/>
+        }
+    }
+
     return (
-        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -209,22 +342,9 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
             </div>
 
             {/* Messages */}
-            <div ref={viewportRef} className="flex-1 min-h-[50svh] sm:min-h-0 overflow-y-auto px-2 sm:px-4 py-4 space-y-2 sm:space-y-4">
-                {messages.map((m) => (
-                    <Bubble key={m.id} role={m.role} content={m.content}/>
-                ))}
-
-                {isBusy && (
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-            <span className="relative flex size-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"></span>
-              <span className="relative inline-flex rounded-full size-2"></span>
-            </span>
-                        Replying…
-                    </div>
-                )}
-            </div>
-
+            {renderMessages()}
+            {/* Last AI Message */}
+            {renderLastAiMsg()}
             {/* Composer */}
             <div className="border-t border-gray-200 p-3">
                 <div
@@ -250,39 +370,6 @@ export default function Chat({apiUrl, threadId, updateThreadId, setConversationT
                     </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Press send</p>
-            </div>
-        </div>
-    );
-}
-
-function Bubble({role, content}: { role: "user" | "assistant"; content: string }) {
-    const isUser = role === "user";
-    return (
-        <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-            <div className={`flex items-start gap-3 max-w-[80%]`}>
-                {!isUser && (
-                    <div className="shrink-0 mt-1 size-6 flex items-center justify-center rounded-full bg-blue-500 text-white">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 9h6v6H9z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364-6.364l-1.414 1.414M6.05 17.95l-1.414 1.414M17.95 17.95l1.414 1.414M6.05 6.05L4.636 4.636" />
-                        </svg>
-                    </div>
-                )}
-                <div
-                    className={[
-                        "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                        isUser
-                            ? "bg-gray-500 text-white rounded-br-sm"
-                            : "rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap bg-blue-500 text-white rounded-br-sm",
-                    ].join(" ")}
-                >
-                    {content || <span className="opacity-0">…</span>}
-                </div>
-                {isUser && <div className="shrink-0 mt-1 size-6 flex items-center justify-center rounded-full bg-gray-300/80 text-gray-700">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A9.969 9.969 0 0112 15c2.21 0 4.236.72 5.879 1.928M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                </div>}
             </div>
         </div>
     );

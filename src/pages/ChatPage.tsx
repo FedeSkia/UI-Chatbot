@@ -1,51 +1,41 @@
 import {useEffect, useState} from "react";
 import Chat from "../components/Chat";
-import {useNavigate, useOutletContext} from "react-router-dom";
-import {
-    deleteThread,
-    getUserThreads,
-    type UserConversationThread,
-    type UserConversationThreadsResponse
-} from "../lib/conversationMessagesResponse.ts";
+import {useNavigate} from "react-router-dom";
+import {deleteThread, getUserThreads, type UserConversationThread} from "../lib/conversationMessagesResponse.ts";
 import Sidebar from "../components/Sidebar.tsx";
 import MobileSidebar from "../components/MobileSidebar.tsx";
 
 const API_URL = import.meta.env.VITE_API_URL as string;
 
-type LayoutCtx = {
-    isMobileSidebarOpen: boolean;
-    setIsMobileSidebarOpen: React.Dispatch<React.SetStateAction<boolean>>;
-};
-
-export function ChatPage() {
-    const [conversationThreads, setConversationThreads] = useState<UserConversationThreadsResponse | null>(null);
+export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
+    isMobileSidebarOpen: boolean,
+    setIsMobileSidebarOpen: any
+}) {
+    const [conversationThreads, setConversationThreads] = useState<UserConversationThread[]>([]);
     const [activeThreadId, setActiveThreadId] = useState<string | null | undefined>(null);
     const navigate = useNavigate();
-    const {isMobileSidebarOpen, setIsMobileSidebarOpen} =
-        useOutletContext<LayoutCtx>();
-
-    async function retrieveAndSetConversations() {
-        const res = await getUserThreads();
-        if (!res.ok && res.error === "Unauthenticated") {
-            navigate("/login", {replace: true});
-            return;
-        }
-        setConversationThreads(res);
-        if (res.threads && res.threads.length > 0) {
-            const newActiveThreadId = res.threads.find(value => value.has_msg)?.thread_id;
-            setActiveThreadId(newActiveThreadId);
-        } else {
-            setActiveThreadId(null);
-        }
-    }
 
     useEffect(() => {
-        (async () => {
-            await retrieveAndSetConversations();
-        })();
+        console.log('ChatPage mounted');
+        return () => console.log('ChatPage unmounted');
+    }, []);
+
+    useEffect(() => {
+        getUserThreads().then(res => {
+            if (!res.ok && res.error === "Unauthenticated") {
+                navigate("/login", {replace: true});
+                return;
+            }
+            if (res && res.threads && res.threads.length > 0) {
+                setConversationThreads(res.threads);
+                setActiveThreadId(res.threads[0].thread_id);
+            } else {
+                setActiveThreadId(null);
+            }
+        })
     }, [navigate]);
 
-    function addDummyThreadToConversations(tempId: string, now: string, prev: UserConversationThreadsResponse | null) {
+    function addDummyThreadToConversations(tempId: string, now: string, prev: UserConversationThread[]): UserConversationThread[] {
         const newThread: UserConversationThread = {
             thread_id: tempId,
             created_at: now,
@@ -54,30 +44,22 @@ export function ChatPage() {
         };
 
         if (!prev) {
-            return {
-                ok: true,
-                error: "",
-                threads: [newThread],
-            };
+            return [newThread]
         }
-
-        return {
-            ...prev,
-            threads: [newThread, ...prev.threads],
-        };
+        return prev.concat(newThread);
     }
 
     function handleNew() {
         //Do nothing if empty conversation already exists
-        if(conversationThreads && conversationThreads.threads && conversationThreads.threads.length > 0) {
-            const foundEmptyConversation = conversationThreads?.threads.find(value => value.has_msg);
-            if(foundEmptyConversation === undefined) {
+        if (conversationThreads && conversationThreads.length > 0) {
+            const foundEmptyConversation = conversationThreads.find(value => value.thread_id === "tmp");
+            if (foundEmptyConversation !== undefined) {
                 return
             }
         }
 
         const now = new Date().toISOString();
-        const tempId = `tmp-${crypto.randomUUID()}`; // placeholder id for UI only
+        const tempId = "tmp"; // placeholder id for UI only
         setActiveThreadId(tempId);
         setConversationThreads(prev => {
             return addDummyThreadToConversations(tempId, now, prev);
@@ -91,7 +73,23 @@ export function ChatPage() {
     async function deleteConversationThread(threadId: string) {
         const resp = await deleteThread(threadId);
         if (resp.ok) {
-            await retrieveAndSetConversations();
+            return getUserThreads().then(res => {
+                if (!res.ok && res.error === "Unauthenticated") {
+                    navigate("/login", {replace: true});
+                    return;
+                }
+                if (res) {
+                    setConversationThreads(res.threads);
+                    if (res.threads.length > 0) {
+                        setActiveThreadId(res.threads[0].thread_id);
+                    } else {
+                        setActiveThreadId(null);
+                    }
+                } else {
+                    setActiveThreadId(null);
+                }
+            })
+
         }
     }
 
@@ -119,13 +117,7 @@ export function ChatPage() {
                             activeThreadId={activeThreadId}
                             onSelect={handleSelect}
                             onNew={handleNew}
-                            onDelete={async (id) => {
-                                await deleteConversationThread(id);
-                                setConversationThreads((prev) =>
-                                    prev ? { ...prev, threads: prev.threads.filter(t => t.thread_id !== id) } : prev
-                                );
-                                if (activeThreadId === id) setActiveThreadId(null);
-                            }}
+                            onDelete={deleteConversationThread}
                         />
                     )}
                 </div>
@@ -133,7 +125,7 @@ export function ChatPage() {
                     <Chat
                         apiUrl={API_URL}
                         threadId={activeThreadId}
-                        updateThreadId={handleSelect}
+                        updateCurrentThreadId={handleSelect}
                         setConversationThreads={setConversationThreads}
                     />
                 </main>
