@@ -95,7 +95,7 @@ export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
 
 
     return (
-        <div className="w-full px-2 sm:px-4 py-3 flex-1 overflow-hidden">
+        <div className="w-full px-2 sm:px-4 py-3 flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex gap-4 h-full min-h-0">
                 {/* Desktop sidebar */}
                 <div className="hidden md:block">

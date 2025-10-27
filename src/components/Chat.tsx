@@ -14,7 +14,7 @@ import AiLastMsgComponent from "./AiLastMsgComponent.tsx";
 
 export type UserMsg = { id: number; content: string; interaction_id: string };
 export type AiMsg = { id: number; content: string; thinkingContent: string; interaction_id: string };
-export type ToolMsg = {page_content: string; page_number: number; document_name:string}
+export type ToolMsg = { page_content: string; page_number: number; document_name: string }
 type Msg = UserMsg | AiMsg;
 
 const openingThinkTag = /<think>/;
@@ -53,7 +53,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
 
         if (!res.ok) {
             if (res.error === "Unauthenticated") {
-                navigate("/login", { replace: true, state: { from: location } });
+                navigate("/login", {replace: true, state: {from: location}});
             }
             return;
         }
@@ -62,7 +62,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
         for (let i = 0; i < res.messages.length; i++) {
             const m = res.messages[i];
             if (m.type === "human") {
-                messages.push({ id: i, content: m.content, interaction_id: m.interaction_id });
+                messages.push({id: i, content: m.content, interaction_id: m.interaction_id});
             } else {
                 const thinkingContent = keepOnlyThinking(m.content);
                 const finalMsgContent = removeThinking(m.content);
@@ -122,7 +122,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
 
     async function sendMsg(text: string) {
         let headers: Record<string, string>;
-        if(!threadId || threadId === "tmp") { //do not send it
+        if (!threadId || threadId === "tmp") { //do not send it
             headers = {
                 "Content-Type": "application/json",
                 accept: "application/json",
@@ -221,13 +221,14 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
 
                 const chunk = decoder.decode(value, {stream: true});
 
-                if(chunk.includes("TOOL_MSG")) {
+                if (chunk.includes("TOOL_MSG")) {
                     try {
                         const jsonToolMsg = chunk.replace("TOOL_MSG:", "");
                         const toolMsg: ToolMsg[] = JSON.parse(jsonToolMsg);
                         setCurrentToolMsgs(toolMsg);
                         continue;
-                    } catch (e) { /* empty */ }
+                    } catch (e) { /* empty */
+                    }
                 }
                 bufferRef += chunk;
                 // if the chunk starts a <think> block — show the "thinking" bubble right away
@@ -293,11 +294,11 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
         }, {});
 
         const renderedMsgs = [];
-        for (const [interaction_id ,msgs] of Object.entries(messagesGroupedByInteractionId)) {
+        for (const [interaction_id, msgs] of Object.entries(messagesGroupedByInteractionId)) {
             const aiMsgs: AiMsg[] = [];
-            for(let i = 0; i < msgs.length; i++) {
+            for (let i = 0; i < msgs.length; i++) {
                 const msg = msgs[i];
-                if(isUserMsg(msg)) {
+                if (isUserMsg(msg)) {
                     renderedMsgs.push(<UserMsgComponent key={interaction_id} userMsg={msg}/>);
                 } else if (isAiMsg(msg)) {
                     const aiMsg: AiMsg = msg;
@@ -306,8 +307,9 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                     }
                 }
             }
-            if(aiMsgs.length > 0) {
-                renderedMsgs.push(<AiMsgsBelongingToSameRequestComponent key={renderedMsgs.length + 1} aiMsgs={aiMsgs}/>)
+            if (aiMsgs.length > 0) {
+                renderedMsgs.push(<AiMsgsBelongingToSameRequestComponent key={renderedMsgs.length + 1}
+                                                                         aiMsgs={aiMsgs}/>)
             }
 
         }
@@ -323,14 +325,14 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
         if (currentAiMsg) {
             return <AiLastMsgComponent aiMsg={currentAiMsg} showThinking={showLastMsgThinking}
                                        setShowThinking={setShowLastMsgThinking} toolMsgs={currentToolMsgs}/>
-        }
+        } //flex flex-col h-screen max-h-screen border rounded-xl
     }
 
     return (
         <div
-            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            className="flex h-screen flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
+            <header className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
                 <div className="flex items-center gap-3">
                     <div className="size-8 rounded-md bg-green-600"/>
                     <div>
@@ -339,16 +341,23 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                     </div>
                 </div>
                 <span className="text-xs text-gray-500">{messages.length} messages count</span>
-            </div>
+            </header>
 
-            {/* Messages */}
-            {renderMessages()}
-            {/* Last AI Message */}
-            {renderLastAiMsg()}
-            {/* Composer */}
-            <div className="border-t border-gray-200 p-3">
-                <div
-                    className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white/80 px-2 py-2">
+            {/* Messages area — scrollable */}
+
+            <section
+                ref={viewportRef}
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+                className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 scroll-smooth"
+            >
+                {renderMessages()}
+                {renderLastAiMsg()}
+            </section>
+            {/* footer */}
+            <footer className="border-t border-gray-200 p-3">
+                <div className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white/80 px-2 py-2">
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -370,7 +379,7 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                     </button>
                 </div>
                 <p className="mt-2 text-xs text-gray-500">Press send</p>
-            </div>
+            </footer>
         </div>
     );
 }
