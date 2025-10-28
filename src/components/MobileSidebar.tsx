@@ -70,7 +70,7 @@ export default function MobileSidebar({
 
     return (
         // Overlay container (only on mobile)
-        <div className="fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
+        <div className="h-full fixed inset-0 z-50 md:hidden" role="dialog" aria-modal="true">
             {/* Backdrop (click to close) */}
             <button
                 type="button"

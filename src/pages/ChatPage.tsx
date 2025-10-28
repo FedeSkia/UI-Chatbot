@@ -98,7 +98,8 @@ export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
         <div className="w-full px-2 sm:px-4 py-3 flex flex-col flex-1 min-h-0 overflow-hidden">
             <div className="flex gap-4 h-full min-h-0">
                 {/* Desktop sidebar */}
-                <div className="hidden md:block">
+                {typeof window !== "undefined" && window.innerWidth >= 768 && (
+                  <div className="hidden md:block">
                     <Sidebar
                         conversationThreads={conversationThreads}
                         activeThreadId={activeThreadId}
@@ -106,7 +107,8 @@ export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
                         onNew={handleNew}
                         onDelete={deleteConversationThread}
                     />
-                </div>
+                  </div>
+                )}
                 {/* Mobile drawer */}
                 <div className="md:hidden">
                     {isMobileSidebarOpen && (
