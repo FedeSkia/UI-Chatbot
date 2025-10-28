@@ -121,14 +121,12 @@ export function ChatPage({isMobileSidebarOpen, setIsMobileSidebarOpen}: {
                         />
                     )}
                 </div>
-                <main className="min-w-0 flex-1 flex min-h-0">
                     <Chat
                         apiUrl={API_URL}
                         threadId={activeThreadId}
                         updateCurrentThreadId={handleSelect}
                         setConversationThreads={setConversationThreads}
                     />
-                </main>
             </div>
         </div>
     );

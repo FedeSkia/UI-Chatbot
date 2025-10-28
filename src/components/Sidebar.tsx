@@ -76,7 +76,7 @@ export default function Sidebar({
         >
             {/* Panel */}
             <div
-                className="aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-300 bg-white shadow-md flex flex-col">
+                className="aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-400 bg-white shadow-md flex flex-col">
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50">
                     <div className="flex items-center gap-2">

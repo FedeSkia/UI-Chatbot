@@ -329,35 +329,28 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
     }
 
     return (
-        <div
-            className="flex h-screen flex-1 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-col flex-1 min-h-0 rounded-2xl border border-gray-200 bg-white shadow-sm">
             {/* Header */}
-            <header className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-                <div className="flex items-center gap-3">
-                    <div className="size-8 rounded-md bg-green-600"/>
-                    <div>
-                        <div className="text-sm font-semibold">Chat AI</div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">Online</div>
-                    </div>
-                </div>
-                <span className="text-xs text-gray-500">{messages.length} messages count</span>
+            <header className="shrink-0 flex items-center justify-between border-b border-gray-200 px-4 py-3">
+                <div className="text-sm font-semibold">Chat AI</div>
+                <div className="text-xs text-gray-500">Online</div>
             </header>
 
             {/* Messages area — scrollable */}
-
             <section
                 ref={viewportRef}
                 role="log"
                 aria-live="polite"
                 aria-relevant="additions"
-                className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-4 scroll-smooth"
+                className="flex-1 overflow-y-auto px-4 py-3 space-y-3 scroll-smooth"
             >
                 {renderMessages()}
                 {renderLastAiMsg()}
             </section>
-            {/* footer */}
-            <footer className="border-t border-gray-200 p-3">
-                <div className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white/80 px-2 py-2">
+
+            {/* Footer — static at bottom */}
+            <footer className="shrink-0 border-t border-gray-200 bg-white p-3">
+                <div className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-2 py-2">
                     <input
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -370,10 +363,9 @@ export default function Chat({apiUrl, threadId, updateCurrentThreadId, setConver
                         disabled={!canSend}
                         className="inline-flex items-center gap-2 rounded-lg bg-blue-600 text-white px-3 py-2 text-sm font-medium hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none"
-                             stroke="currentColor">
-                            <path strokeWidth="2" d="M22 2L11 13"/>
-                            <path strokeWidth="2" d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path strokeWidth="2" d="M22 2L11 13" />
+                            <path strokeWidth="2" d="M22 2L15 22L11 13L2 9L22 2Z" />
                         </svg>
                         Send
                     </button>

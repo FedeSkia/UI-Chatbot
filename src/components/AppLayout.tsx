@@ -19,12 +19,10 @@ export default function AppLayout() {
     else content = <ChatPage isMobileSidebarOpen={isMobileSidebarOpen} setIsMobileSidebarOpen={setIsMobileSidebarOpen}/>; // fallback instead of Navigate
 
     return (
-        <div className="min-h-screen flex flex-col bg-gray-50">
+        <div className="flex flex-col h-screen">
             <TopBar onToggleMobileSidebar={toggleMobileSidebar} />
-            <main className="flex-1 overflow-hidden">
-                <div className="mx-auto max-w-7xl px-4 py-4 h-full">
-                        {content}
-                </div>
+            <main className="flex-1 flex flex-col min-h-0 bg-gray-50">
+                {content}
             </main>
         </div>
     );
