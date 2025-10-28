@@ -69,16 +69,16 @@ export default function Sidebar({
     return (
         <aside
             className={[
-                "shrink-0 relative transition-all duration-300",
+                "flex flex-col h-full shrink-0 relative transition-all duration-300",
                 "w-[clamp(240px,24vw,380px)]",
                 "aria-expanded: true",
             ].join(" ")}
         >
-            {/* Panel */}
-            <div
-                className="aria-hidden:false h-[calc(100vh-2rem)] sticky top-4 overflow-hidden rounded-2xl border border-gray-400 bg-white shadow-md flex flex-col">
-                {/* Header */}
-                <div className="px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50">
+            {/* Sidebar wrapper — full height */}
+            <div className="flex flex-col flex-1 min-h-0 rounded-2xl border border-gray-400 bg-white shadow-md overflow-hidden">
+
+                {/* Header (static) */}
+                <div className="shrink-0 px-4 py-3 border-b border-gray-300 flex items-center justify-between bg-gray-50">
                     <div className="flex items-center gap-2">
                         <div className="text-sm font-semibold">Conversations</div>
                     </div>
@@ -92,8 +92,8 @@ export default function Sidebar({
                     </button>
                 </div>
 
-                {/* List */}
-                <div className="p-2 overflow-y-auto divide-y divide-gray-200" tabIndex={0}>
+                {/* Scrollable list */}
+                <div className="flex-1 overflow-y-auto p-2 divide-y divide-gray-200" tabIndex={0}>
                     {conversationThreads.length === 0 ? (
                         <div className="text-xs text-gray-500 px-2 py-3">No conversation yet. Create one</div>
                     ) : (
@@ -111,9 +111,8 @@ export default function Sidebar({
                                             className={[
                                                 "w-full group flex items-start gap-2 px-3 py-2 rounded-lg text-left border transition-colors",
                                                 active ? "bg-blue-50 border-blue-600" : "border-gray-200 hover:bg-gray-50",
-                                                isBusy ? "opacity-50 cursor-not-allowed" : ""
+                                                isBusy ? "opacity-50 cursor-not-allowed" : "",
                                             ].join(" ")}
-                                            tabIndex={0}
                                         >
                                             <div
                                                 className={[
@@ -130,30 +129,20 @@ export default function Sidebar({
                                                 aria-busy={isBusy}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if (isBusy) {
-                                                        return;
-                                                    } else {
-                                                        openDeleteConfirm(thread.thread_id);
-                                                    }
+                                                    if (isBusy) return;
+                                                    openDeleteConfirm(thread.thread_id);
                                                 }}
-                                                className={`ml-2 ${isBusy ? "text-gray-300 cursor-not-allowed" : "text-red-500 hover:text-red-700 cursor-pointer"}`}
+                                                className={`ml-2 ${isBusy
+                                                    ? "text-gray-300 cursor-not-allowed"
+                                                    : "text-red-500 hover:text-red-700 cursor-pointer"
+                                                }`}
                                                 title="Delete conversation"
                                             >
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                          <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-6 4h8"
-                          />
-                        </svg>
-                      </span>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5-4h4m-6 4h8"/>
+                      </svg>
+                    </span>
                                         </button>
                                     </li>
                                 );
